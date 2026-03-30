@@ -266,6 +266,7 @@
           const [currentView, setCurrentView] = useState('home');
           const [activePatientId, setActivePatientId] = useState(null);
           const [searchQuery, setSearchQuery] = useState('');
+          const [isSaving, setIsSaving] = useState(false);
           
           // Firebase Auth State
           const [user, setUser] = useState(null);
@@ -299,7 +300,24 @@
             
             const unsubscribe = onSnapshot(patientsRef, (snapshot) => {
               const data = [];
-              snapshot.forEach(doc => data.push(doc.data()));
+              snapshot.forEach(doc => {
+                  const p = doc.data();
+                  
+                  // 🔥 FIX FOR NESTED ARRAYS: Parse stringified table rows back into arrays when downloading
+                  if (p.customTables) {
+                      p.customTables = p.customTables.map(t => {
+                          let parsedRows = [['', '']];
+                          try {
+                              parsedRows = typeof t.rows === 'string' ? JSON.parse(t.rows) : t.rows;
+                          } catch(e) {
+                              console.error("Error parsing table rows", e);
+                          }
+                          return { ...t, rows: parsedRows };
+                      });
+                  }
+                  
+                  data.push(p);
+              });
               setPatients(data);
             }, (error) => {
               console.error("Firestore error:", error);
@@ -338,8 +356,8 @@
               ipId: newIpId,
               name: '', age: '', gender: '', contact: '',
               chiefComplaints: '', history: '', assessmentNote: '', diagnosis: '',
-              treatmentNote: '', // New Field
-              customTables: [],  // New Field for dynamic tables
+              treatmentNote: '', 
+              customTables: [], 
               trackedMetrics: [], records: []
             };
             
@@ -354,22 +372,48 @@
           };
 
           const handleSavePatient = async (updatedPatient) => {
+            setIsSaving(true);
+            
+            // Immediately update local UI state to feel responsive
             setPatients(prev => {
                 const exists = prev.find(p => p.id === updatedPatient.id);
                 if (exists) return prev.map(p => p.id === updatedPatient.id ? updatedPatient : p);
                 return [...prev, updatedPatient];
             });
+
             setCurrentView('home');
             setActivePatientId(null);
 
             if (user) {
               try {
+                // Create a clean copy to send to Firebase
+                const patientToSave = { ...updatedPatient };
+                
+                // 🔥 FIX FOR NESTED ARRAYS: Firestore throws an error if we try to save arrays inside arrays.
+                // We must stringify the custom table rows before saving to the cloud.
+                if (patientToSave.customTables) {
+                    patientToSave.customTables = patientToSave.customTables.map(t => ({
+                        ...t,
+                        rows: JSON.stringify(t.rows)
+                    }));
+                }
+
+                // Remove any accidental undefined values that break Firestore
+                Object.keys(patientToSave).forEach(key => {
+                    if (patientToSave[key] === undefined) {
+                        delete patientToSave[key];
+                    }
+                });
+
                 const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'patients', updatedPatient.id);
-                await setDoc(docRef, updatedPatient);
+                await setDoc(docRef, patientToSave);
+                console.log("Successfully saved to Firestore!");
+
               } catch(e) {
                 console.error("Failed to save patient to cloud: ", e);
               }
             }
+            setIsSaving(false);
           };
 
           const filteredPatients = patients.filter(p => {
@@ -433,6 +477,7 @@
                   </div>
                   
                   <div className="flex items-center gap-3">
+                      {isSaving && <span className="text-xs font-medium text-blue-200 animate-pulse hidden sm:block">Syncing to cloud...</span>}
                       {currentView === 'home' && (
                          <button onClick={handleCreatePatient} className="flex items-center gap-1.5 bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-400 transition-colors shadow-sm border border-blue-400">
                             <i className="ph-bold ph-plus"></i> Patient
