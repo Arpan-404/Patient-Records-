@@ -10,6 +10,21 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <style>
+        /* Print-specific styles to ensure the background borders and layout match a physical A4 page */
+        @page { size: A4; margin: 10mm; }
+        @media print {
+            body { 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+                background-color: white !important;
+            }
+            .print-break-inside-avoid {
+                break-inside: avoid;
+            }
+        }
+    </style>
 </head>
 <body>
     <div id="root"></div>
@@ -132,11 +147,10 @@
             return () => unsubscribe();
           }, []);
 
-          // 2. Fetch Patients from Firestore (ONLY runs when logged in)
+          // 2. Fetch Patients from Firestore
           useEffect(() => {
             if (!user) return;
             
-            // Reference to this specific user's patient data
             const patientsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'patients');
             
             const unsubscribe = onSnapshot(patientsRef, (snapshot) => {
@@ -164,7 +178,7 @@
           const handleLogout = async () => {
               try {
                   await signOut(auth);
-                  setPatients([]); // Clear data from screen on logout
+                  setPatients([]); 
               } catch (error) {
                   console.error("Logout failed:", error);
               }
@@ -230,7 +244,7 @@
              )
           }
 
-          // --- VIEW: LOGIN SCREEN (If not authenticated) ---
+          // --- VIEW: LOGIN SCREEN ---
           if (!user) {
               return (
                   <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4">
@@ -238,18 +252,15 @@
                           <div className="mx-auto bg-blue-100 text-blue-600 w-16 h-16 rounded-full flex items-center justify-center mb-4 shadow-inner">
                               <i className="ph-fill ph-activity text-4xl"></i>
                           </div>
-                          
                           <div>
                               <h1 className="text-2xl font-bold text-slate-800">PhysioCare</h1>
                               <p className="text-sm text-slate-500 mt-1">Private Clinical Tracker</p>
                           </div>
-
                           {loginError && (
                               <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100">
                                   {loginError}
                               </div>
                           )}
-
                           <button 
                               onClick={handleGoogleLogin}
                               className="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 text-slate-700 font-medium py-3 px-4 rounded-xl hover:bg-slate-50 hover:shadow-sm transition-all shadow-sm"
@@ -257,19 +268,16 @@
                               <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo" className="w-5 h-5" />
                               Sign in with Google
                           </button>
-                          
-                          <p className="text-xs text-slate-400">
-                              Secure access restricted to authorized accounts only.
-                          </p>
+                          <p className="text-xs text-slate-400">Secure access restricted to authorized accounts only.</p>
                       </div>
                   </div>
               )
           }
 
-          // --- MAIN APP (If Authenticated) ---
+          // --- MAIN APP ---
           return (
-            <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-20">
-              <header className="bg-blue-600 text-white shadow-md sticky top-0 z-10">
+            <div className="min-h-screen bg-slate-50 text-slate-800 font-sans print:bg-white">
+              <header className="bg-blue-600 text-white shadow-md sticky top-0 z-10 print:hidden">
                 <div className="max-w-6xl mx-auto px-3 py-2.5 flex justify-between items-center">
                   <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('home')}>
                     <div className="bg-white text-blue-600 p-1.5 rounded-full flex items-center justify-center">
@@ -284,8 +292,6 @@
                             <i className="ph-bold ph-plus"></i> Patient
                           </button>
                       )}
-                      
-                      {/* Sign Out Button (Profile Icon) */}
                       <button onClick={handleLogout} className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-700 hover:bg-blue-800 transition-colors text-white border border-blue-500" title="Sign Out">
                          <i className="ph-bold ph-sign-out text-sm"></i>
                       </button>
@@ -293,7 +299,7 @@
                 </div>
               </header>
 
-              <main className="max-w-6xl mx-auto px-2 sm:px-4 py-4">
+              <main className="max-w-6xl mx-auto px-2 sm:px-4 py-4 print:p-0 print:m-0 print:max-w-none">
                 {currentView === 'home' ? (
                   <HomeView patients={filteredPatients} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onOpenPatient={handleOpenPatient} />
                 ) : (
@@ -307,7 +313,7 @@
         // --- HOME VIEW ---
         function HomeView({ patients, searchQuery, setSearchQuery, onOpenPatient }) {
           return (
-            <div className="space-y-4">
+            <div className="space-y-4 print:hidden">
               <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center gap-2">
                 <i className="ph-bold ph-magnifying-glass text-slate-400 text-lg"></i>
                 <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by name, ID, or diagnosis..." className="w-full bg-transparent focus:outline-none text-sm text-slate-700" />
@@ -348,7 +354,7 @@
           );
         }
 
-        // --- PATIENT DETAIL VIEW ---
+        // --- PATIENT DETAIL VIEW (Includes Digital & Print versions) ---
         function PatientDetailView({ patient, onSave, onCancel }) {
           const [formData, setFormData] = useState(patient);
           const [isMetricModalOpen, setIsMetricModalOpen] = useState(false);
@@ -453,190 +459,388 @@
             }));
           };
 
+          // --- SVG Anatomy Body Outline ---
+          const AnatomySVG = () => (
+             <svg width="120" height="240" viewBox="0 0 100 220" fill="none" stroke="#2563eb" strokeWidth="1" opacity="0.6" className="mx-auto my-4">
+                {/* Head */}
+                <circle cx="50" cy="15" r="10" />
+                {/* Neck & Spine Line */}
+                <line x1="50" y1="25" x2="50" y2="105" />
+                <line x1="50" y1="15" x2="50" y2="5" />
+                {/* Shoulders & Torso */}
+                <path d="M 35 30 Q 50 25 65 30 L 60 95 L 40 95 Z" />
+                {/* Left Arm */}
+                <path d="M 35 30 Q 25 40 22 65 L 18 90" strokeLinecap="round" />
+                {/* Right Arm */}
+                <path d="M 65 30 Q 75 40 78 65 L 82 90" strokeLinecap="round" />
+                {/* Left Leg */}
+                <path d="M 40 95 L 35 150 L 32 200" strokeLinecap="round" />
+                {/* Right Leg */}
+                <path d="M 60 95 L 65 150 L 68 200" strokeLinecap="round" />
+                {/* Hand details */}
+                <circle cx="17" cy="95" r="3" />
+                <circle cx="83" cy="95" r="3" />
+                {/* Feet details */}
+                <path d="M 32 200 L 25 205 L 35 205 Z" strokeLinejoin="round" />
+                <path d="M 68 200 L 75 205 L 65 205 Z" strokeLinejoin="round" />
+             </svg>
+          );
+
           return (
-            <div className="space-y-4 animate-in fade-in duration-300">
-              <div className="flex items-center justify-between px-1">
-                <button onClick={onCancel} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors">
-                  <i className="ph-bold ph-arrow-left text-lg"></i> Back
-                </button>
-                <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-bold tracking-wider text-xs">
-                  IP: {formData.ipId}
-                </div>
-              </div>
-
-              <section className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-slate-200">
-                <div className="flex items-center gap-2 mb-3 text-blue-800 border-b border-slate-100 pb-2">
-                  <i className="ph-bold ph-user text-base"></i>
-                  <h2 className="font-semibold text-sm">Patient Details</h2>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-                  <input type="text" name="name" value={formData.name} onChange={(e) => handleInputChange(e.target)} className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none" placeholder="Name" />
-                  <input type="number" name="age" value={formData.age} onChange={(e) => handleInputChange(e.target)} className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none" placeholder="Age" />
-                  <select name="gender" value={formData.gender} onChange={(e) => handleInputChange(e.target)} className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none">
-                    <option value="">Gender</option><option value="Male">Male</option><option value="Female">Female</option>
-                  </select>
-                  <input type="tel" name="contact" value={formData.contact} onChange={(e) => handleInputChange(e.target)} className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none" placeholder="Contact" />
-                </div>
-              </section>
-
-              <section className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
-                  <textarea name="chiefComplaints" value={formData.chiefComplaints} onChange={(e) => handleInputChange(e.target)} rows="1" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none resize-none min-h-[40px]" placeholder="C/C (Chief Complaints)"></textarea>
-                  <textarea name="history" value={formData.history} onChange={(e) => handleInputChange(e.target)} rows="1" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none resize-none min-h-[40px]" placeholder="History"></textarea>
-                </div>
-                <div className="space-y-3">
-                  <textarea name="assessmentNote" value={formData.assessmentNote} onChange={(e) => handleInputChange(e.target)} rows="2" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none resize-none min-h-[50px]" placeholder="Assessment Notes..."></textarea>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-xs font-semibold text-blue-700">Diagnosis:</div>
-                    <input type="text" name="diagnosis" value={formData.diagnosis || ''} onChange={(e) => handleInputChange(e.target)} className="w-full pl-20 p-2 text-sm bg-blue-50/50 border border-blue-100 rounded-md outline-none font-medium" placeholder="e.g. Spondylitis" />
-                  </div>
-                </div>
-              </section>
-
-              <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h2 className="font-semibold text-sm text-blue-800">Reassessment Table</h2>
-                    <p className="text-[10px] text-slate-500">Compact multi-session tracking</p>
-                  </div>
-                  <button onClick={() => setIsMetricModalOpen(true)} className="flex items-center justify-center gap-1.5 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-blue-200 transition-colors w-full sm:w-auto">
-                    <i className="ph-bold ph-plus"></i> Add Column
+            <div>
+              {/* --- 📱 DIGITAL INTERACTIVE UI (Hidden on Print) --- */}
+              <div className="space-y-4 animate-in fade-in duration-300 print:hidden">
+                <div className="flex items-center justify-between px-1">
+                  <button onClick={onCancel} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors">
+                    <i className="ph-bold ph-arrow-left text-lg"></i> Back
                   </button>
+                  <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-bold tracking-wider text-xs">
+                    IP: {formData.ipId}
+                  </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-max border-collapse text-sm">
-                    <thead>
-                      <tr>
-                        <th className="p-2 text-left text-[11px] font-semibold text-slate-700 border-b border-r border-slate-200 w-24 align-bottom bg-slate-50/50">Date</th>
-                        
-                        {formData.trackedMetrics.map(metric => {
-                          let widthClass = "min-w-[100px]"; 
-                          if (metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT')) widthClass = "min-w-[80px] w-[80px]";
-                          if (metric.type === 'ROM with VAS') widthClass = "min-w-[110px] w-[110px]";
+                <section className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-slate-200">
+                  <div className="flex items-center gap-2 mb-3 text-blue-800 border-b border-slate-100 pb-2">
+                    <i className="ph-bold ph-user text-base"></i>
+                    <h2 className="font-semibold text-sm">Patient Details</h2>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+                    <input type="text" name="name" value={formData.name} onChange={(e) => handleInputChange(e.target)} className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none" placeholder="Name" />
+                    <input type="number" name="age" value={formData.age} onChange={(e) => handleInputChange(e.target)} className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none" placeholder="Age" />
+                    <select name="gender" value={formData.gender} onChange={(e) => handleInputChange(e.target)} className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none">
+                      <option value="">Gender</option><option value="Male">Male</option><option value="Female">Female</option>
+                    </select>
+                    <input type="tel" name="contact" value={formData.contact} onChange={(e) => handleInputChange(e.target)} className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none" placeholder="Contact" />
+                  </div>
+                </section>
 
-                          return (
-                            <th key={metric.id} className={`text-left font-semibold text-slate-700 border-b border-r border-slate-200 align-bottom p-0 bg-slate-50/50 ${widthClass} group`}>
-                              <div className="flex items-start justify-between p-1.5 px-2">
-                                <div className="flex flex-col leading-tight w-full">
-                                  <span className="text-[9px] text-slate-400 uppercase tracking-wider">{metric.type}</span>
-                                  <span className="text-[11px] truncate" title={metric.title}>{metric.title}</span>
-                                  {metric.normal && <span className="text-[9px] text-emerald-600 font-medium mt-0.5">Norm: {metric.normal}</span>}
-                                </div>
-                                <button onClick={() => removeMetricColumn(metric.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 p-0">
-                                  <i className="ph-bold ph-x text-xs"></i>
-                                </button>
-                              </div>
+                <section className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
+                    <textarea name="chiefComplaints" value={formData.chiefComplaints} onChange={(e) => handleInputChange(e.target)} rows="1" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none resize-none min-h-[40px]" placeholder="C/C (Chief Complaints)"></textarea>
+                    <textarea name="history" value={formData.history} onChange={(e) => handleInputChange(e.target)} rows="1" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none resize-none min-h-[40px]" placeholder="History"></textarea>
+                  </div>
+                  <div className="space-y-3">
+                    <textarea name="assessmentNote" value={formData.assessmentNote} onChange={(e) => handleInputChange(e.target)} rows="2" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none resize-none min-h-[50px]" placeholder="Assessment Notes..."></textarea>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-xs font-semibold text-blue-700">Diagnosis:</div>
+                      <input type="text" name="diagnosis" value={formData.diagnosis || ''} onChange={(e) => handleInputChange(e.target)} className="w-full pl-20 p-2 text-sm bg-blue-50/50 border border-blue-100 rounded-md outline-none font-medium" placeholder="e.g. Spondylitis" />
+                    </div>
+                  </div>
+                </section>
 
-                              {metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT') && (
-                                <div className="flex w-full border-t border-slate-200 text-[10px] bg-slate-100/50 text-slate-600">
-                                  <div className="flex-1 py-0.5 text-center border-r border-slate-200 font-bold">R</div>
-                                  <div className="flex-1 py-0.5 text-center font-bold">L</div>
-                                </div>
-                              )}
+                <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h2 className="font-semibold text-sm text-blue-800">Reassessment Table</h2>
+                      <p className="text-[10px] text-slate-500">Compact multi-session tracking</p>
+                    </div>
+                    <button onClick={() => setIsMetricModalOpen(true)} className="flex items-center justify-center gap-1.5 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-blue-200 transition-colors w-full sm:w-auto">
+                      <i className="ph-bold ph-plus"></i> Add Column
+                    </button>
+                  </div>
 
-                              {metric.type === 'ROM with VAS' && (
-                                <div className="flex w-full border-t border-slate-200 text-[10px] bg-slate-100/50 text-slate-500">
-                                  <div className="flex-1 py-0.5 text-center border-r border-slate-200">VAS</div>
-                                  <div className="flex-1 py-0.5 text-center">ROM</div>
-                                </div>
-                              )}
-                            </th>
-                          );
-                        })}
-                        <th className="p-2 border-b border-slate-200 w-8 bg-slate-50/50"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {formData.records.map(record => (
-                        <tr key={record.id} className="border-b border-slate-100 hover:bg-slate-50/30">
-                          <td className="p-0 border-r border-slate-100 align-top">
-                            <input type="date" value={record.date} onChange={(e) => updateRecordDate(record.id, e.target.value)} className="w-full h-8 px-1 bg-transparent text-[11px] focus:outline-none focus:text-blue-600 font-medium" />
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-max border-collapse text-sm">
+                      <thead>
+                        <tr>
+                          <th className="p-2 text-left text-[11px] font-semibold text-slate-700 border-b border-r border-slate-200 w-24 align-bottom bg-slate-50/50">Date</th>
                           
                           {formData.trackedMetrics.map(metric => {
-                            const cellValue = record.values[metric.id];
-
-                            if (metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT')) {
-                               return (
-                                 <td key={metric.id} className="p-0 border-r border-slate-200 align-top">
-                                    <div className="flex h-full w-full">
-                                       <input 
-                                         className="w-1/2 h-8 text-center text-[11px] bg-transparent border-r border-slate-100 outline-none hover:bg-slate-50 focus:bg-blue-50/50 placeholder:text-slate-300 px-0.5"
-                                         value={cellValue?.r || ''} onChange={e => updateBilateralCellValue(record.id, metric.id, 'r', e.target.value)} placeholder="-" 
-                                       />
-                                       <input 
-                                         className="w-1/2 h-8 text-center text-[11px] bg-transparent outline-none hover:bg-slate-50 focus:bg-blue-50/50 placeholder:text-slate-300 px-0.5"
-                                         value={cellValue?.l || ''} onChange={e => updateBilateralCellValue(record.id, metric.id, 'l', e.target.value)} placeholder="-" 
-                                       />
-                                    </div>
-                                 </td>
-                               );
-                            }
-
-                            if (metric.type === 'ROM with VAS') {
-                              let entries = Array.isArray(cellValue) ? cellValue : [{ vas: '', rom: '' }];
-                              if (entries.length === 0) entries = [{ vas: '', rom: '' }];
-
-                              return (
-                                <td key={metric.id} className="p-0 border-r border-slate-200 align-top">
-                                   <div className="flex flex-col h-full">
-                                     {entries.map((entry, idx) => (
-                                         <div key={idx} className="flex relative border-b border-slate-100 last:border-b-0 group bg-white">
-                                             <div className="w-1/2 border-r border-slate-100 flex items-center">
-                                                <input className="w-full h-8 text-center bg-transparent outline-none text-[11px] placeholder:text-slate-300 px-0.5" value={entry.vas || ''} onChange={e => updateComplexCellValue(record.id, metric.id, idx, 'vas', e.target.value)} placeholder="0/10" />
-                                             </div>
-                                             <div className="w-1/2 flex items-center justify-center">
-                                                <input className="w-full h-8 text-center bg-transparent outline-none text-[11px] placeholder:text-slate-300 px-0.5" value={entry.rom || ''} onChange={e => updateComplexCellValue(record.id, metric.id, idx, 'rom', e.target.value)} placeholder="0°" />
-                                             </div>
-                                             {entries.length > 1 && (
-                                               <button onClick={() => removeComplexEntry(record.id, metric.id, idx)} className="absolute -right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 bg-white rounded-full shadow-sm z-10">
-                                                 <i className="ph-bold ph-x text-[10px]"></i>
-                                               </button>
-                                             )}
-                                         </div>
-                                     ))}
-                                     <button onClick={() => addComplexEntry(record.id, metric.id)} className="w-full bg-slate-50 hover:bg-slate-100 text-[9px] py-1 text-blue-600 border-t border-slate-100 uppercase tracking-wider font-semibold">
-                                       + Add
-                                     </button>
-                                   </div>
-                                </td>
-                              );
-                            }
+                            let widthClass = "min-w-[100px]"; 
+                            if (metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT')) widthClass = "min-w-[80px] w-[80px]";
+                            if (metric.type === 'ROM with VAS') widthClass = "min-w-[110px] w-[110px]";
 
                             return (
-                              <td key={metric.id} className="p-0 border-r border-slate-100 align-top">
-                                <input type="text" placeholder="-" value={cellValue || ''} onChange={(e) => updateSimpleCellValue(record.id, metric.id, e.target.value)} className="w-full h-8 text-[11px] text-center bg-transparent px-1 outline-none hover:bg-slate-50 focus:bg-blue-50/50 transition-colors" />
-                              </td>
+                              <th key={metric.id} className={`text-left font-semibold text-slate-700 border-b border-r border-slate-200 align-bottom p-0 bg-slate-50/50 ${widthClass} group`}>
+                                <div className="flex items-start justify-between p-1.5 px-2">
+                                  <div className="flex flex-col leading-tight w-full">
+                                    <span className="text-[9px] text-slate-400 uppercase tracking-wider">{metric.type}</span>
+                                    <span className="text-[11px] truncate" title={metric.title}>{metric.title}</span>
+                                    {metric.normal && <span className="text-[9px] text-emerald-600 font-medium mt-0.5">Norm: {metric.normal}</span>}
+                                  </div>
+                                  <button onClick={() => removeMetricColumn(metric.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 p-0">
+                                    <i className="ph-bold ph-x text-xs"></i>
+                                  </button>
+                                </div>
+
+                                {metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT') && (
+                                  <div className="flex w-full border-t border-slate-200 text-[10px] bg-slate-100/50 text-slate-600">
+                                    <div className="flex-1 py-0.5 text-center border-r border-slate-200 font-bold">R</div>
+                                    <div className="flex-1 py-0.5 text-center font-bold">L</div>
+                                  </div>
+                                )}
+
+                                {metric.type === 'ROM with VAS' && (
+                                  <div className="flex w-full border-t border-slate-200 text-[10px] bg-slate-100/50 text-slate-500">
+                                    <div className="flex-1 py-0.5 text-center border-r border-slate-200">VAS</div>
+                                    <div className="flex-1 py-0.5 text-center">ROM</div>
+                                  </div>
+                                )}
+                              </th>
                             );
                           })}
-                          
-                          <td className="p-0 text-center align-top">
-                            <button onClick={() => removeDateRow(record.id)} className="w-full h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
-                              <i className="ph-bold ph-trash text-xs"></i>
+                          <th className="p-2 border-b border-slate-200 w-8 bg-slate-50/50"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formData.records.map(record => (
+                          <tr key={record.id} className="border-b border-slate-100 hover:bg-slate-50/30">
+                            <td className="p-0 border-r border-slate-100 align-top">
+                              <input type="date" value={record.date} onChange={(e) => updateRecordDate(record.id, e.target.value)} className="w-full h-8 px-1 bg-transparent text-[11px] focus:outline-none focus:text-blue-600 font-medium" />
+                            </td>
+                            
+                            {formData.trackedMetrics.map(metric => {
+                              const cellValue = record.values[metric.id];
+
+                              if (metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT')) {
+                                 return (
+                                   <td key={metric.id} className="p-0 border-r border-slate-200 align-top">
+                                      <div className="flex h-full w-full">
+                                         <input 
+                                           className="w-1/2 h-8 text-center text-[11px] bg-transparent border-r border-slate-100 outline-none hover:bg-slate-50 focus:bg-blue-50/50 placeholder:text-slate-300 px-0.5"
+                                           value={cellValue?.r || ''} onChange={e => updateBilateralCellValue(record.id, metric.id, 'r', e.target.value)} placeholder="-" 
+                                         />
+                                         <input 
+                                           className="w-1/2 h-8 text-center text-[11px] bg-transparent outline-none hover:bg-slate-50 focus:bg-blue-50/50 placeholder:text-slate-300 px-0.5"
+                                           value={cellValue?.l || ''} onChange={e => updateBilateralCellValue(record.id, metric.id, 'l', e.target.value)} placeholder="-" 
+                                         />
+                                      </div>
+                                   </td>
+                                 );
+                              }
+
+                              if (metric.type === 'ROM with VAS') {
+                                let entries = Array.isArray(cellValue) ? cellValue : [{ vas: '', rom: '' }];
+                                if (entries.length === 0) entries = [{ vas: '', rom: '' }];
+
+                                return (
+                                  <td key={metric.id} className="p-0 border-r border-slate-200 align-top">
+                                     <div className="flex flex-col h-full">
+                                       {entries.map((entry, idx) => (
+                                           <div key={idx} className="flex relative border-b border-slate-100 last:border-b-0 group bg-white">
+                                               <div className="w-1/2 border-r border-slate-100 flex items-center">
+                                                  <input className="w-full h-8 text-center bg-transparent outline-none text-[11px] placeholder:text-slate-300 px-0.5" value={entry.vas || ''} onChange={e => updateComplexCellValue(record.id, metric.id, idx, 'vas', e.target.value)} placeholder="0/10" />
+                                               </div>
+                                               <div className="w-1/2 flex items-center justify-center">
+                                                  <input className="w-full h-8 text-center bg-transparent outline-none text-[11px] placeholder:text-slate-300 px-0.5" value={entry.rom || ''} onChange={e => updateComplexCellValue(record.id, metric.id, idx, 'rom', e.target.value)} placeholder="0°" />
+                                               </div>
+                                               {entries.length > 1 && (
+                                                 <button onClick={() => removeComplexEntry(record.id, metric.id, idx)} className="absolute -right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 bg-white rounded-full shadow-sm z-10">
+                                                   <i className="ph-bold ph-x text-[10px]"></i>
+                                                 </button>
+                                               )}
+                                           </div>
+                                       ))}
+                                       <button onClick={() => addComplexEntry(record.id, metric.id)} className="w-full bg-slate-50 hover:bg-slate-100 text-[9px] py-1 text-blue-600 border-t border-slate-100 uppercase tracking-wider font-semibold">
+                                         + Add
+                                       </button>
+                                     </div>
+                                  </td>
+                                );
+                              }
+
+                              return (
+                                <td key={metric.id} className="p-0 border-r border-slate-100 align-top">
+                                  <input type="text" placeholder="-" value={cellValue || ''} onChange={(e) => updateSimpleCellValue(record.id, metric.id, e.target.value)} className="w-full h-8 text-[11px] text-center bg-transparent px-1 outline-none hover:bg-slate-50 focus:bg-blue-50/50 transition-colors" />
+                                </td>
+                              );
+                            })}
+                            
+                            <td className="p-0 text-center align-top">
+                              <button onClick={() => removeDateRow(record.id)} className="w-full h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                                <i className="ph-bold ph-trash text-xs"></i>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        <tr>
+                          <td colSpan={formData.trackedMetrics.length + 2} className="p-0 border-t border-slate-200">
+                            <button onClick={addDateRow} className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-blue-600 font-semibold hover:bg-blue-50 transition-colors">
+                              <i className="ph-bold ph-plus"></i> Add Session Date
                             </button>
                           </td>
                         </tr>
-                      ))}
-                      <tr>
-                        <td colSpan={formData.trackedMetrics.length + 2} className="p-0 border-t border-slate-200">
-                          <button onClick={addDateRow} className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-blue-600 font-semibold hover:bg-blue-50 transition-colors">
-                            <i className="ph-bold ph-plus"></i> Add Session Date
-                          </button>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </section>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
 
-              <div className="flex gap-3 justify-end pt-2 pb-8">
-                <button className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 shadow-sm" onClick={() => window.print()}>
-                  <i className="ph-bold ph-printer text-base"></i> Print
-                </button>
-                <button onClick={() => onSave(formData)} className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm shadow-blue-200">
-                  <i className="ph-bold ph-floppy-disk text-base"></i> Save to Cloud
-                </button>
+                <div className="flex gap-3 justify-end pt-2 pb-8">
+                  <button className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 shadow-sm" onClick={() => window.print()}>
+                    <i className="ph-bold ph-printer text-base"></i> Print
+                  </button>
+                  <button onClick={() => onSave(formData)} className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm shadow-blue-200">
+                    <i className="ph-bold ph-floppy-disk text-base"></i> Save to Cloud
+                  </button>
+                </div>
+              </div>
+
+              {/* --- 🖨️ PRINT VIEW (Hidden on Screen, Visible on Print) --- */}
+              <div className="hidden print:block bg-white text-[#1e40af] text-[13px] font-sans">
+                  
+                  {/* HEADER */}
+                  <div className="flex justify-between items-end border-b-[1.5px] border-[#1e40af] pb-2 mb-4">
+                      <div>
+                          <h1 className="text-4xl font-bold italic tracking-wide" style={{ textShadow: "0px 0px 1px #1e40af" }}>Dr. Arpan Das (PT)</h1>
+                          <p className="text-sm mt-1">BPT (KPC Medical College and Hospital)</p>
+                      </div>
+                      <div className="text-right flex flex-col items-end">
+                          <div className="flex items-center gap-2 font-bold text-base mb-4">
+                              <i className="ph ph-phone-call text-xl"></i> +91 9641568109
+                          </div>
+                          <div className="text-sm flex items-center gap-2">
+                              Date: <span className="border-b border-[#1e40af]/40 w-28 text-center text-slate-800">{new Date().toLocaleDateString('en-GB')}</span>
+                          </div>
+                      </div>
+                  </div>
+
+                  {/* PATIENT INFO BAR */}
+                  <div className="flex justify-between items-end mb-4 text-sm font-medium">
+                      <div className="flex-1 flex items-end">
+                          <span className="whitespace-nowrap">Patient's name:</span> 
+                          <span className="border-b border-[#1e40af]/40 flex-1 ml-2 mr-4 px-2 text-slate-800">{formData.name}</span>
+                      </div>
+                      <div className="w-24 flex items-end">
+                          <span className="whitespace-nowrap">Age:</span> 
+                          <span className="border-b border-[#1e40af]/40 flex-1 ml-2 mr-4 px-2 text-center text-slate-800">{formData.age}</span>
+                      </div>
+                      <div className="w-36 flex items-end">
+                          <span className="whitespace-nowrap">Gender:</span> 
+                          <span className="border-b border-[#1e40af]/40 flex-1 ml-2 mr-4 px-2 text-center text-slate-800">{formData.gender}</span>
+                      </div>
+                      <div className="w-32 flex items-end">
+                          <span className="whitespace-nowrap">UPID:</span> 
+                          <span className="border-b border-[#1e40af]/40 flex-1 ml-2 px-2 text-center text-slate-800">{formData.ipId}</span>
+                      </div>
+                  </div>
+
+                  {/* MAIN BODY BOX */}
+                  <div className="border-[1.5px] border-[#1e40af] p-6 min-h-[850px] relative flex flex-col">
+                      
+                      <div className="mb-6 z-10 relative">
+                          <div className="flex items-start">
+                              <span className="text-3xl text-slate-300 font-serif mr-2 leading-none">Rx</span>
+                              <span className="font-semibold text-base mt-1">Chief Complaint :-</span>
+                          </div>
+                          <p className="mt-1 ml-10 text-slate-800">{formData.chiefComplaints || "\u00A0"}</p>
+                      </div>
+
+                      <div className="mb-6 z-10 relative">
+                          <span className="font-semibold text-base">History :-</span>
+                          <p className="mt-1 ml-2 text-slate-800">{formData.history || "\u00A0"}</p>
+                      </div>
+
+                      <div className="mb-6 z-10 relative">
+                          <span className="font-semibold text-base">Assessment :-</span>
+                          <p className="mt-1 ml-2 text-slate-800 whitespace-pre-wrap">{formData.assessmentNote || "\u00A0"}</p>
+                          {formData.diagnosis && (
+                              <p className="mt-2 ml-2 font-medium">Diagnosis: <span className="text-slate-800 font-normal">{formData.diagnosis}</span></p>
+                          )}
+                      </div>
+
+                      {/* Embedded Anatomy Outline (positioned relative to document flow) */}
+                      <AnatomySVG />
+
+                      <div className="mb-8 z-10 relative">
+                          <span className="font-semibold text-base">Treatment :-</span>
+                          <p className="mt-1 ml-2 text-slate-800 h-10"></p> 
+                      </div>
+
+                      {/* Re-Assessment Print Table */}
+                      <div className="z-10 relative mt-auto print-break-inside-avoid">
+                          <span className="font-semibold text-base block mb-3">Re- Assessment:-</span>
+                          {formData.trackedMetrics.length > 0 ? (
+                            <table className="w-full border-collapse text-[11px] text-slate-800 border border-[#1e40af]">
+                                <thead>
+                                    <tr>
+                                        <th className="p-1.5 text-left border border-[#1e40af] bg-blue-50/50 w-20">Date</th>
+                                        {formData.trackedMetrics.map(metric => (
+                                            <th key={metric.id} className="p-1 border border-[#1e40af] bg-blue-50/50 text-center align-top">
+                                                <div className="flex flex-col h-full justify-between">
+                                                    <span className="font-semibold leading-tight px-1 mb-1">{metric.title}</span>
+                                                    
+                                                    {metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT') && (
+                                                      <div className="flex w-full border-t border-[#1e40af] text-[9px] text-[#1e40af] mt-auto">
+                                                        <div className="flex-1 py-0.5 border-r border-[#1e40af] font-bold">R</div>
+                                                        <div className="flex-1 py-0.5 font-bold">L</div>
+                                                      </div>
+                                                    )}
+                                                    {metric.type === 'ROM with VAS' && (
+                                                      <div className="flex w-full border-t border-[#1e40af] text-[9px] text-[#1e40af] mt-auto">
+                                                        <div className="flex-1 py-0.5 border-r border-[#1e40af] font-bold">VAS</div>
+                                                        <div className="flex-1 py-0.5 font-bold">ROM</div>
+                                                      </div>
+                                                    )}
+                                                </div>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {formData.records.map(record => (
+                                        <tr key={record.id}>
+                                            <td className="p-1.5 border border-[#1e40af] whitespace-nowrap">
+                                                {record.date ? new Date(record.date).toLocaleDateString('en-GB') : ''}
+                                            </td>
+                                            {formData.trackedMetrics.map(metric => {
+                                                const cellValue = record.values[metric.id];
+
+                                                if (metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT')) {
+                                                    return (
+                                                        <td key={metric.id} className="p-0 border border-[#1e40af] align-top">
+                                                            <div className="flex h-full min-h-[24px]">
+                                                                <div className="w-1/2 border-r border-[#1e40af] flex items-center justify-center p-1">
+                                                                    {cellValue?.r || '-'}
+                                                                </div>
+                                                                <div className="w-1/2 flex items-center justify-center p-1">
+                                                                    {cellValue?.l || '-'}
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    );
+                                                }
+
+                                                if (metric.type === 'ROM with VAS') {
+                                                    let entries = Array.isArray(cellValue) ? cellValue : [];
+                                                    if (entries.length === 0) return <td key={metric.id} className="border border-[#1e40af] text-center">-</td>;
+                                                    
+                                                    return (
+                                                        <td key={metric.id} className="p-0 border border-[#1e40af] align-top">
+                                                            <div className="flex flex-col h-full min-h-[24px]">
+                                                                {entries.map((entry, idx) => (
+                                                                    <div key={idx} className="flex border-b border-[#1e40af]/30 last:border-b-0">
+                                                                        <div className="w-1/2 border-r border-[#1e40af]/30 flex items-center justify-center p-1">
+                                                                            {entry.vas || '-'}
+                                                                        </div>
+                                                                        <div className="w-1/2 flex items-center justify-center p-1">
+                                                                            {entry.rom ? `${entry.rom} (at)` : '-'}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </td>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <td key={metric.id} className="p-1 border border-[#1e40af] text-center align-middle">
+                                                        {cellValue || '-'}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    ))}
+                                    {formData.records.length === 0 && (
+                                        <tr><td colSpan={formData.trackedMetrics.length + 1} className="p-2 border border-[#1e40af] text-center italic text-slate-500">No records added.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                          ) : (
+                              <p className="text-slate-500 italic ml-2">No reassessment metrics tracked yet.</p>
+                          )}
+                      </div>
+
+                  </div>
               </div>
 
               {isMetricModalOpen && <AddMetricModal onClose={() => setIsMetricModalOpen(false)} onAdd={addMetricColumn} />}
@@ -648,17 +852,13 @@
         function AddMetricModal({ onClose, onAdd }) {
           const [type, setType] = useState('ROM');
           const [romMode, setRomMode] = useState('Active');
-          
           const jointsList = Object.keys(JOINTS_DATA);
           const [selectedJointGroup, setSelectedJointGroup] = useState(jointsList[2]); 
           const [selectedMovementIdx, setSelectedMovementIdx] = useState(0);
-          
           const [side, setSide] = useState('R'); 
           const [customName, setCustomName] = useState('');
 
-          useEffect(() => {
-            setSelectedMovementIdx(0);
-          }, [selectedJointGroup]);
+          useEffect(() => { setSelectedMovementIdx(0); }, [selectedJointGroup]);
 
           const handleAdd = () => {
             let title = '';
@@ -669,42 +869,29 @@
             if (type === 'ROM' || type === 'ROM with VAS') {
               title += `${romMode} ${selectedJointGroup} ${movement.name}`;
               normalVal = movement.normal;
-              
-              if (type === 'ROM with VAS' && movement.type === 'bilateral') {
-                title += ` (${side})`;
-              } else if (type === 'ROM') {
-                isBilateral = movement.type === 'bilateral';
-              }
+              if (type === 'ROM with VAS' && movement.type === 'bilateral') title += ` (${side})`;
+              else if (type === 'ROM') isBilateral = movement.type === 'bilateral';
             } 
             else if (type === 'MMT') {
               title += `${selectedJointGroup} ${movement.name}`;
               isBilateral = movement.type === 'bilateral';
               normalVal = '5/5'; 
             } 
-            else {
-              title = customName || 'Custom Treatment';
-            }
+            else title = customName || 'Custom Treatment';
 
-            onAdd({ 
-              id: crypto.randomUUID(), 
-              type, 
-              title,
-              isBilateral,
-              normal: normalVal
-            });
+            onAdd({ id: crypto.randomUUID(), type, title, isBilateral, normal: normalVal });
           };
 
           const currentMovements = JOINTS_DATA[selectedJointGroup];
           const selectedMovement = currentMovements[selectedMovementIdx];
 
           return (
-            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-3">
+            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 print:hidden">
               <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
                 <div className="flex justify-between items-center p-3 border-b border-slate-100 bg-slate-50">
                   <h3 className="font-bold text-sm text-slate-800">New Column</h3>
                   <button onClick={onClose} className="p-1 text-slate-400 hover:bg-slate-200 rounded-full"><i className="ph-bold ph-x text-lg"></i></button>
                 </div>
-
                 <div className="p-4 space-y-4">
                   <div className="space-y-1">
                     <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Metric Type</label>
@@ -715,7 +902,6 @@
                       <option value="Other">Other / Electrotherapy</option>
                     </select>
                   </div>
-
                   {(type === 'ROM' || type === 'ROM with VAS' || type === 'MMT') && (
                     <>
                       {(type === 'ROM' || type === 'ROM with VAS') && (
@@ -724,7 +910,6 @@
                           <label className="flex items-center gap-1.5 text-sm"><input type="radio" checked={romMode === 'Passive'} onChange={() => setRomMode('Passive')} className="accent-blue-600" /> Passive</label>
                         </div>
                       )}
-                      
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Joint</label>
@@ -732,7 +917,6 @@
                             {Object.keys(JOINTS_DATA).map(j => <option key={j} value={j}>{j}</option>)}
                           </select>
                         </div>
-                        
                         <div className="space-y-1">
                           <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Movement</label>
                           <select value={selectedMovementIdx} onChange={(e) => setSelectedMovementIdx(Number(e.target.value))} className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-blue-500">
@@ -740,7 +924,6 @@
                           </select>
                         </div>
                       </div>
-                      
                       {type === 'ROM with VAS' && selectedMovement.type === 'bilateral' && (
                         <div className="flex gap-4 pt-1">
                           <label className="flex items-center gap-1.5 text-sm"><input type="radio" checked={side === 'R'} onChange={() => setSide('R')} className="accent-blue-600" /> Right Side</label>
@@ -749,7 +932,6 @@
                       )}
                     </>
                   )}
-
                   {type === 'Other' && (
                      <div className="space-y-1">
                         <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Name</label>
@@ -757,7 +939,6 @@
                      </div>
                   )}
                 </div>
-
                 <div className="p-3 border-t border-slate-100 bg-slate-50">
                   <button onClick={handleAdd} className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors">
                     Add Column
