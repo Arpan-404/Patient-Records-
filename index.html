@@ -24,6 +24,11 @@
                 break-inside: avoid;
                 page-break-inside: avoid;
             }
+            /* Completely hide placeholders when printing so the paper looks clean */
+            .editable-cell:empty:before {
+                content: none !important;
+                display: none !important;
+            }
         }
         
         /* Auto-sizing content editable cell styles */
@@ -147,7 +152,7 @@
             const addCol = () => {
                 updateTable({
                     ...table,
-                    headers: [...table.headers, 'New Column'],
+                    headers: [...table.headers, 'New Col'],
                     rows: table.rows.map(r => [...r, ''])
                 });
             };
@@ -184,13 +189,13 @@
 
             return (
                 <div className="w-fit max-w-full bg-white border border-slate-200 rounded-lg shadow-sm overflow-x-auto print:overflow-visible print:border-none print:shadow-none print-break-inside-avoid">
-                    <div className="bg-slate-100 px-3 py-2 flex items-center justify-between border-b border-slate-200 print:bg-transparent print:border-b-2 print:border-[#1e40af] print:px-0">
+                    <div className={`bg-slate-100 px-3 py-2 flex items-center justify-between border-b border-slate-200 print:bg-transparent print:px-0 ${table.title ? 'print:border-b-2 print:border-[#1e40af]' : 'print:border-none print:p-0'}`}>
                         <div
                             contentEditable
                             suppressContentEditableWarning
                             onBlur={(e) => updateTitle(e.currentTarget.textContent)}
-                            className="font-bold text-sm text-blue-800 outline-none editable-cell w-auto print:text-[#1e40af] print:text-base"
-                            data-placeholder="Table Title"
+                            className={`font-bold text-sm text-blue-800 outline-none editable-cell w-auto print:text-[#1e40af] print:text-base ${!table.title ? 'print:hidden' : ''}`}
+                            data-placeholder="Table Title (Optional)"
                         >
                             {table.title}
                         </div>
@@ -200,8 +205,7 @@
                             <button onClick={removeTable} className="text-[10px] bg-red-50 border border-red-200 text-red-600 px-2 py-1 rounded hover:bg-red-100"><i className="ph-bold ph-trash"></i></button>
                         </div>
                     </div>
-                    <div className="p-2 print:p-0 print:mt-2">
-                        {/* Changed to w-auto and table-auto to allow shrinking and parallel placement */}
+                    <div className="p-2 print:p-0 print:mt-1">
                         <table className="w-auto min-w-[150px] text-left border-collapse table-auto print:border print:border-[#1e40af]">
                             <thead>
                                 <tr>
@@ -212,6 +216,7 @@
                                                 suppressContentEditableWarning
                                                 onBlur={(e) => updateHeader(i, e.currentTarget.textContent)}
                                                 className="editable-cell font-semibold text-slate-700 text-[12px] p-2 print:text-slate-800"
+                                                data-placeholder="Header"
                                             >
                                                 {h}
                                             </div>
@@ -514,7 +519,7 @@
               const newTable = {
                   id: crypto.randomUUID(),
                   section: section,
-                  title: `Custom ${section.charAt(0).toUpperCase() + section.slice(1)} Table`,
+                  title: '', // Removed default title as requested
                   headers: ['Column 1', 'Column 2'],
                   rows: [['', ''], ['', '']]
               };
@@ -1173,5 +1178,6 @@
     </script>
 </body>
 </html>
+
 
 
