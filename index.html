@@ -61,7 +61,7 @@
         // --- MICROSOFT ONEDRIVE CONFIGURATION ---
         const msalConfig = {
             auth: {
-                clientId: "898a7ee9-4082-4e8a-9437-b6923fc83a87", // Your Developer Client ID
+                clientId: "898a7ee9-4082-4e8a-9437-b6923fc83a87", 
                 authority: "https://login.microsoftonline.com/common",
                 redirectUri: window.location.origin + window.location.pathname
             },
@@ -432,8 +432,10 @@
                   const token = await getOneDriveToken();
                   const file = await compressImage(originalFile);
 
+                  // FIX: Removed the deeply nested "PhysioCare_Files/" folder.
+                  // Now uploads straight to a single-level folder so Microsoft doesn't get confused.
                   const safePatientName = (formData.name || 'Unknown_Patient').replace(/[^a-zA-Z0-9]/g, '_');
-                  const folderName = `PhysioCare_Files/IP_${formData.ipId}_${safePatientName}`;
+                  const folderName = `PhysioCare_${formData.ipId}_${safePatientName}`;
                   const safeFileName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_'); 
                   
                   const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${folderName}/${safeFileName}:/content`;
@@ -448,8 +450,6 @@
                       const errorData = await response.json();
                       const errorCode = errorData.error?.code || response.status;
                       const errorMsg = errorData.error?.message || "Unknown error";
-                      
-                      // Precise error logging to help debug Azure configuration issues
                       throw new Error(`Microsoft Error Code: [${errorCode}]\nMessage: ${errorMsg}\n\nFIX: If code is 'AccessDenied', you must go to Microsoft Entra -> API permissions -> Click 'Grant Admin Consent'.`);
                   }
 
