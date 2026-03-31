@@ -18,13 +18,38 @@
     <style>
         @page { size: A4; margin: 10mm; }
         @media print {
-            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: white !important; }
-            .print-break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
-            .editable-cell:empty:before { content: none !important; display: none !important; }
+            body { 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+                background-color: white !important;
+            }
+            .print-break-inside-avoid {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            .editable-cell:empty:before {
+                content: none !important;
+                display: none !important;
+            }
         }
-        .editable-cell { min-width: 30px; max-width: 100%; outline: none; word-break: break-word; white-space: pre-wrap; transition: background-color 0.2s; }
-        .editable-cell:empty:before { content: attr(data-placeholder); color: #cbd5e1; pointer-events: none; display: block; }
-        .editable-cell:focus { background-color: rgba(239, 246, 255, 0.5); }
+        
+        .editable-cell {
+            min-width: 30px;
+            max-width: 100%;
+            outline: none;
+            word-break: break-word;
+            white-space: pre-wrap;
+            transition: background-color 0.2s;
+        }
+        .editable-cell:empty:before {
+            content: attr(data-placeholder);
+            color: #cbd5e1;
+            pointer-events: none;
+            display: block; 
+        }
+        .editable-cell:focus {
+            background-color: rgba(239, 246, 255, 0.5); 
+        }
     </style>
 </head>
 <body>
@@ -40,11 +65,14 @@
                 authority: "https://login.microsoftonline.com/common",
                 redirectUri: window.location.origin + window.location.pathname
             },
-            cache: { cacheLocation: "localStorage", storeAuthStateInCookie: true }
+            cache: {
+                cacheLocation: "localStorage", 
+                storeAuthStateInCookie: true, 
+            }
         };
         const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-        // --- FIREBASE IMPORTS ---
+        // --- FIREBASE IMPORTS (For Text Data Only) ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCustomToken, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -144,6 +172,7 @@
           const [searchQuery, setSearchQuery] = useState('');
           const [isSaving, setIsSaving] = useState(false);
           
+          // Firebase & Microsoft Auth State
           const [user, setUser] = useState(null);
           const [isConnecting, setIsConnecting] = useState(true);
           const [loginError, setLoginError] = useState("");
@@ -157,6 +186,7 @@
             };
             initAuth();
 
+            // Check if OneDrive is already connected in this browser session
             const accounts = msalInstance.getAllAccounts();
             if (accounts.length > 0) { setIsOneDriveConnected(true); }
 
@@ -167,6 +197,7 @@
             return () => unsubscribe();
           }, []);
 
+          // Fetch Patients from Firestore
           useEffect(() => {
             if (!user) return;
             const patientsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'patients');
@@ -200,15 +231,32 @@
           // --- MICROSOFT ONEDRIVE CONNECT ---
           const connectOneDrive = async () => {
               try {
-                  // FORCE ACCOUNT SELECTION
+                  // FIX: Forces the Microsoft login screen to appear and makes you pick an account!
                   await msalInstance.loginPopup({ 
                       scopes: ["user.read", "Files.ReadWrite"],
-                      prompt: "select_account" // This forces the browser to let you type your dev email
+                      prompt: "login" // <--- This forces the browser to ignore the wrong saved email
                   });
                   setIsOneDriveConnected(true);
               } catch (err) {
                   console.error("MSAL Login Error:", err);
                   alert(`Connection Error: ${err.message || "Please ensure pop-ups are allowed."}`);
+              }
+          };
+          
+          const disconnectOneDrive = () => {
+              const activeAccount = msalInstance.getAllAccounts()[0];
+              if (activeAccount) {
+                  msalInstance.logoutPopup({ account: activeAccount })
+                      .then(() => setIsOneDriveConnected(false))
+                      .catch((e) => {
+                          // Force clear cache if popup gets blocked
+                          Object.keys(localStorage).forEach(key => {
+                              if (key.includes("msal") || key.includes("898a7ee9")) localStorage.removeItem(key);
+                          });
+                          setIsOneDriveConnected(false);
+                      });
+              } else {
+                  setIsOneDriveConnected(false);
               }
           };
 
@@ -220,11 +268,12 @@
                   const response = await msalInstance.acquireTokenSilent(request);
                   return response.accessToken;
               } catch (e) {
-                  const response = await msalInstance.acquireTokenPopup({ ...request, prompt: "select_account" });
+                  const response = await msalInstance.acquireTokenPopup({ ...request, prompt: "login" });
                   return response.accessToken;
               }
           };
 
+          // --- App Handlers ---
           const handleCreatePatient = () => {
             const nextNum = patients.length === 0 ? 1 : Math.max(...patients.map(p => parseInt(p.ipId, 10) || 0)) + 1;
             const newIpId = String(nextNum).padStart(4, '0');
@@ -306,6 +355,7 @@
                       onCancel={() => { setCurrentView('home'); setActivePatientId(null); }} 
                       isOneDriveConnected={isOneDriveConnected}
                       connectOneDrive={connectOneDrive}
+                      disconnectOneDrive={disconnectOneDrive}
                       getOneDriveToken={getOneDriveToken}
                   />
                 )}
@@ -356,9 +406,12 @@
         }
 
         // --- PATIENT DETAIL VIEW ---
-        function PatientDetailView({ patient, onSave, onCancel, isOneDriveConnected, connectOneDrive, getOneDriveToken }) {
+        function PatientDetailView({ patient, onSave, onCancel, isOneDriveConnected, connectOneDrive, disconnectOneDrive, getOneDriveToken }) {
           const [formData, setFormData] = useState({
-              ...patient, customTables: patient.customTables || [], treatmentNote: patient.treatmentNote || '', attachments: patient.attachments || []
+              ...patient, 
+              customTables: patient.customTables || [],
+              treatmentNote: patient.treatmentNote || '',
+              attachments: patient.attachments || []
           });
           const [isMetricModalOpen, setIsMetricModalOpen] = useState(false);
           const [uploadingFile, setUploadingFile] = useState(false);
@@ -394,17 +447,6 @@
               setUploadingFile(true);
               try {
                   const token = await getOneDriveToken();
-                  
-                  // DIAGNOSTIC 1: Check who is actually logged in and if their drive exists
-                  const activeAccount = msalInstance.getAllAccounts()[0];
-                  const driveCheck = await fetch("https://graph.microsoft.com/v1.0/me/drive", {
-                      headers: { 'Authorization': `Bearer ${token}` }
-                  });
-                  
-                  if (!driveCheck.ok) {
-                      throw new Error(`DIAGNOSTIC FAILURE:\nThe browser is logged in as: ${activeAccount.username}\n\nIf this is NOT Therapeutic_Moves@8q77kt.onmicrosoft.com, that is the problem! Log out and reconnect.\n\nIf it IS correct, your Developer Drive is not fully initialized by Microsoft yet.`);
-                  }
-
                   const file = await compressImage(originalFile);
 
                   const safePatientName = (formData.name || 'Unknown_Patient').replace(/[^a-zA-Z0-9]/g, '_');
@@ -421,18 +463,27 @@
 
                   if (!response.ok) {
                       const errorData = await response.json();
-                      throw new Error(`Upload Failed. Error: ${errorData.error?.code}`);
+                      const errorCode = errorData.error?.code || response.status;
+                      const errorMsg = errorData.error?.message || "Unknown error";
+                      throw new Error(`Microsoft Error Code: [${errorCode}]\nMessage: ${errorMsg}`);
                   }
 
                   const data = await response.json();
-                  const newAttachment = { id: data.id, name: file.name, url: data.webUrl, date: new Date().toLocaleDateString('en-GB') };
+
+                  const newAttachment = {
+                      id: data.id, 
+                      name: file.name, 
+                      url: data.webUrl, 
+                      date: new Date().toLocaleDateString('en-GB')
+                  };
+
                   const updatedFormData = { ...formData, attachments: [...formData.attachments, newAttachment] };
                   setFormData(updatedFormData);
                   onSave(updatedFormData); 
 
               } catch (err) {
                   console.error(err);
-                  alert(err.message);
+                  alert(`Upload Failed!\n\n${err.message}`);
               }
               setUploadingFile(false);
               e.target.value = null; 
@@ -496,15 +547,22 @@
                               <i className="ph-bold ph-cloud-arrow-up text-sm"></i> Connect 5TB Drive
                           </button>
                       ) : (
-                          <div className="flex items-center gap-2">
-                              {/* DIAGNOSTIC BUTTON: Forces a log out so you can pick the right email */}
-                              <button onClick={() => msalInstance.logoutPopup()} className="text-[10px] text-slate-400 hover:text-slate-600 underline">Switch Account</button>
-                              
-                              <input type="file" id="file-upload" className="hidden" onChange={handleFileUpload} accept="image/*,.pdf" />
-                              <label htmlFor="file-upload" className="text-[11px] font-semibold bg-purple-600 text-white px-3 py-1.5 rounded hover:bg-purple-700 cursor-pointer flex items-center gap-1.5 shadow-sm transition-colors">
-                                  {uploadingFile ? <i className="ph-bold ph-spinner-gap animate-spin text-sm"></i> : <i className="ph-bold ph-upload-simple text-sm"></i>}
-                                  {uploadingFile ? 'Uploading...' : 'Upload to OneDrive'}
-                              </label>
+                          <div className="flex flex-col items-end gap-1.5">
+                              <div className="flex items-center gap-2">
+                                  <input type="file" id="file-upload" className="hidden" onChange={handleFileUpload} accept="image/*,.pdf" />
+                                  <label htmlFor="file-upload" className="text-[11px] font-semibold bg-purple-600 text-white px-3 py-1.5 rounded hover:bg-purple-700 cursor-pointer flex items-center gap-1.5 shadow-sm transition-colors">
+                                      {uploadingFile ? <i className="ph-bold ph-spinner-gap animate-spin text-sm"></i> : <i className="ph-bold ph-upload-simple text-sm"></i>}
+                                      {uploadingFile ? 'Uploading...' : 'Upload File'}
+                                  </label>
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px]">
+                                  <span className="text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded" title={msalInstance.getAllAccounts()[0]?.username}>
+                                      {msalInstance.getAllAccounts()[0]?.username?.split('@')[0]}
+                                  </span>
+                                  <button onClick={disconnectOneDrive} className="text-red-500 hover:text-red-700 underline font-semibold cursor-pointer">
+                                      Disconnect
+                                  </button>
+                              </div>
                           </div>
                       )}
                   </div>
