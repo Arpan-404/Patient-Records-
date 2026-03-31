@@ -18,38 +18,13 @@
     <style>
         @page { size: A4; margin: 10mm; }
         @media print {
-            body { 
-                -webkit-print-color-adjust: exact; 
-                print-color-adjust: exact; 
-                background-color: white !important;
-            }
-            .print-break-inside-avoid {
-                break-inside: avoid;
-                page-break-inside: avoid;
-            }
-            .editable-cell:empty:before {
-                content: none !important;
-                display: none !important;
-            }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: white !important; }
+            .print-break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
+            .editable-cell:empty:before { content: none !important; display: none !important; }
         }
-        
-        .editable-cell {
-            min-width: 30px;
-            max-width: 100%;
-            outline: none;
-            word-break: break-word;
-            white-space: pre-wrap;
-            transition: background-color 0.2s;
-        }
-        .editable-cell:empty:before {
-            content: attr(data-placeholder);
-            color: #cbd5e1;
-            pointer-events: none;
-            display: block; 
-        }
-        .editable-cell:focus {
-            background-color: rgba(239, 246, 255, 0.5); 
-        }
+        .editable-cell { min-width: 30px; max-width: 100%; outline: none; word-break: break-word; white-space: pre-wrap; transition: background-color 0.2s; }
+        .editable-cell:empty:before { content: attr(data-placeholder); color: #cbd5e1; pointer-events: none; display: block; }
+        .editable-cell:focus { background-color: rgba(239, 246, 255, 0.5); }
     </style>
 </head>
 <body>
@@ -65,14 +40,11 @@
                 authority: "https://login.microsoftonline.com/common",
                 redirectUri: window.location.origin + window.location.pathname
             },
-            cache: {
-                cacheLocation: "localStorage", 
-                storeAuthStateInCookie: true, 
-            }
+            cache: { cacheLocation: "localStorage", storeAuthStateInCookie: true }
         };
         const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-        // --- FIREBASE IMPORTS (For Text Data Only) ---
+        // --- FIREBASE IMPORTS ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCustomToken, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -172,7 +144,6 @@
           const [searchQuery, setSearchQuery] = useState('');
           const [isSaving, setIsSaving] = useState(false);
           
-          // Firebase & Microsoft Auth State
           const [user, setUser] = useState(null);
           const [isConnecting, setIsConnecting] = useState(true);
           const [loginError, setLoginError] = useState("");
@@ -186,7 +157,6 @@
             };
             initAuth();
 
-            // Check if OneDrive is already connected in this browser session
             const accounts = msalInstance.getAllAccounts();
             if (accounts.length > 0) { setIsOneDriveConnected(true); }
 
@@ -197,7 +167,6 @@
             return () => unsubscribe();
           }, []);
 
-          // Fetch Patients from Firestore
           useEffect(() => {
             if (!user) return;
             const patientsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'patients');
@@ -231,11 +200,15 @@
           // --- MICROSOFT ONEDRIVE CONNECT ---
           const connectOneDrive = async () => {
               try {
-                  await msalInstance.loginPopup({ scopes: ["user.read", "Files.ReadWrite"] });
+                  // FORCE ACCOUNT SELECTION
+                  await msalInstance.loginPopup({ 
+                      scopes: ["user.read", "Files.ReadWrite"],
+                      prompt: "select_account" // This forces the browser to let you type your dev email
+                  });
                   setIsOneDriveConnected(true);
               } catch (err) {
                   console.error("MSAL Login Error:", err);
-                  alert(`Connection Error: ${err.message || "Please ensure pop-ups are allowed in your browser settings."}`);
+                  alert(`Connection Error: ${err.message || "Please ensure pop-ups are allowed."}`);
               }
           };
 
@@ -247,13 +220,11 @@
                   const response = await msalInstance.acquireTokenSilent(request);
                   return response.accessToken;
               } catch (e) {
-                  console.warn("Silent token failed, attempting popup...");
-                  const response = await msalInstance.acquireTokenPopup(request);
+                  const response = await msalInstance.acquireTokenPopup({ ...request, prompt: "select_account" });
                   return response.accessToken;
               }
           };
 
-          // --- App Handlers ---
           const handleCreatePatient = () => {
             const nextNum = patients.length === 0 ? 1 : Math.max(...patients.map(p => parseInt(p.ipId, 10) || 0)) + 1;
             const newIpId = String(nextNum).padStart(4, '0');
@@ -294,11 +265,7 @@
             return p.ipId.toLowerCase().includes(q) || p.name.toLowerCase().includes(q) || p.contact.includes(q) || (p.diagnosis && p.diagnosis.toLowerCase().includes(q));
           });
 
-          if (isConnecting) return (
-               <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-4 text-blue-600">
-                  <i className="ph-bold ph-spinner-gap text-4xl animate-spin"></i><p className="font-semibold tracking-wide">Loading PhysioCare...</p>
-               </div>
-          )
+          if (isConnecting) return ( <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-4 text-blue-600"><i className="ph-bold ph-spinner-gap text-4xl animate-spin"></i><p className="font-semibold tracking-wide">Loading PhysioCare...</p></div> )
 
           if (!user) return (
               <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4">
@@ -391,10 +358,7 @@
         // --- PATIENT DETAIL VIEW ---
         function PatientDetailView({ patient, onSave, onCancel, isOneDriveConnected, connectOneDrive, getOneDriveToken }) {
           const [formData, setFormData] = useState({
-              ...patient, 
-              customTables: patient.customTables || [],
-              treatmentNote: patient.treatmentNote || '',
-              attachments: patient.attachments || []
+              ...patient, customTables: patient.customTables || [], treatmentNote: patient.treatmentNote || '', attachments: patient.attachments || []
           });
           const [isMetricModalOpen, setIsMetricModalOpen] = useState(false);
           const [uploadingFile, setUploadingFile] = useState(false);
@@ -430,17 +394,23 @@
               setUploadingFile(true);
               try {
                   const token = await getOneDriveToken();
+                  
+                  // DIAGNOSTIC 1: Check who is actually logged in and if their drive exists
+                  const activeAccount = msalInstance.getAllAccounts()[0];
+                  const driveCheck = await fetch("https://graph.microsoft.com/v1.0/me/drive", {
+                      headers: { 'Authorization': `Bearer ${token}` }
+                  });
+                  
+                  if (!driveCheck.ok) {
+                      throw new Error(`DIAGNOSTIC FAILURE:\nThe browser is logged in as: ${activeAccount.username}\n\nIf this is NOT Therapeutic_Moves@8q77kt.onmicrosoft.com, that is the problem! Log out and reconnect.\n\nIf it IS correct, your Developer Drive is not fully initialized by Microsoft yet.`);
+                  }
+
                   const file = await compressImage(originalFile);
 
-                  // FIX: DO NOT use folders at all. Upload directly to the root of the OneDrive.
-                  // We will rename the file itself to keep track of who it belongs to.
                   const safePatientName = (formData.name || 'Unknown_Patient').replace(/[^a-zA-Z0-9]/g, '_');
                   const safeFileName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_'); 
-                  
-                  // Example filename: IP_0001_Soma_Banerjee_xray_scan.jpg
                   const finalFileName = `IP_${formData.ipId}_${safePatientName}_${safeFileName}`;
                   
-                  // Upload directly to 'root' (No folders)
                   const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${finalFileName}:/content`;
 
                   const response = await fetch(endpoint, {
@@ -451,27 +421,18 @@
 
                   if (!response.ok) {
                       const errorData = await response.json();
-                      const errorCode = errorData.error?.code || response.status;
-                      const errorMsg = errorData.error?.message || "Unknown error";
-                      throw new Error(`Microsoft Error Code: [${errorCode}]\nMessage: ${errorMsg}`);
+                      throw new Error(`Upload Failed. Error: ${errorData.error?.code}`);
                   }
 
                   const data = await response.json();
-
-                  const newAttachment = {
-                      id: data.id, 
-                      name: file.name, // Keep the original name for the UI display
-                      url: data.webUrl, 
-                      date: new Date().toLocaleDateString('en-GB')
-                  };
-
+                  const newAttachment = { id: data.id, name: file.name, url: data.webUrl, date: new Date().toLocaleDateString('en-GB') };
                   const updatedFormData = { ...formData, attachments: [...formData.attachments, newAttachment] };
                   setFormData(updatedFormData);
                   onSave(updatedFormData); 
 
               } catch (err) {
                   console.error(err);
-                  alert(`Upload Failed!\n\n${err.message}`);
+                  alert(err.message);
               }
               setUploadingFile(false);
               e.target.value = null; 
@@ -535,7 +496,10 @@
                               <i className="ph-bold ph-cloud-arrow-up text-sm"></i> Connect 5TB Drive
                           </button>
                       ) : (
-                          <div>
+                          <div className="flex items-center gap-2">
+                              {/* DIAGNOSTIC BUTTON: Forces a log out so you can pick the right email */}
+                              <button onClick={() => msalInstance.logoutPopup()} className="text-[10px] text-slate-400 hover:text-slate-600 underline">Switch Account</button>
+                              
                               <input type="file" id="file-upload" className="hidden" onChange={handleFileUpload} accept="image/*,.pdf" />
                               <label htmlFor="file-upload" className="text-[11px] font-semibold bg-purple-600 text-white px-3 py-1.5 rounded hover:bg-purple-700 cursor-pointer flex items-center gap-1.5 shadow-sm transition-colors">
                                   {uploadingFile ? <i className="ph-bold ph-spinner-gap animate-spin text-sm"></i> : <i className="ph-bold ph-upload-simple text-sm"></i>}
@@ -669,16 +633,12 @@
                                 let entries = Array.isArray(cellValue) ? cellValue : [];
                                 if (entries.length === 0) return <td key={metric.id} className="border border-[#1e40af] text-center">-</td>;
                                 return (
-                                    <td key={metric.id} className="p-0 border border-slate-200 align-top">
+                                    <td key={metric.id} className="p-0 border border-[#1e40af] align-top">
                                         <div className="flex flex-col h-full min-h-[24px]">{entries.map((entry, idx) => ( <div key={idx} className="flex border-b border-[#1e40af]/30 last:border-b-0"><div className="flex-1 border-r border-[#1e40af]/30 flex items-center justify-center p-1">{entry.vas || '-'}</div><div className="flex-1 flex items-center justify-center p-1">{entry.rom ? `${entry.rom} (at)` : '-'}</div></div> ))}</div>
                                     </td>
                                 );
                               }
-                              return (
-                                <td key={metric.id} className="p-0 border border-slate-200 align-top bg-white">
-                                  <div contentEditable suppressContentEditableWarning onBlur={e => updateSimpleCellValue(record.id, metric.id, e.currentTarget.textContent)} className="editable-cell text-center h-full min-h-[32px] p-2" data-placeholder="-">{cellValue || ''}</div>
-                                </td>
-                              );
+                              return ( <td key={metric.id} className="p-0 border border-slate-200 align-top bg-white"><div contentEditable suppressContentEditableWarning onBlur={e => updateSimpleCellValue(record.id, metric.id, e.currentTarget.textContent)} className="editable-cell text-center h-full min-h-[32px] p-2" data-placeholder="-">{cellValue || ''}</div></td> );
                             })}
                             <td className="p-0 text-center align-middle border border-slate-200"><button onClick={() => removeDateRow(record.id)} className="w-full h-full min-h-[32px] flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"><i className="ph-bold ph-trash text-xs"></i></button></td>
                           </tr>
@@ -709,12 +669,8 @@
                           <p className="text-sm mt-1">BPT (KPC Medical College and Hospital)</p>
                       </div>
                       <div className="text-right flex flex-col items-end">
-                          <div className="flex items-center gap-2 font-bold text-base mb-4">
-                              <i className="ph ph-phone-call text-xl"></i> +91 9641568109
-                          </div>
-                          <div className="text-sm flex items-center gap-2">
-                              Date: <span className="border-b border-[#1e40af]/40 w-28 text-center text-slate-800">{new Date().toLocaleDateString('en-GB')}</span>
-                          </div>
+                          <div className="flex items-center gap-2 font-bold text-base mb-4"><i className="ph ph-phone-call text-xl"></i> +91 9641568109</div>
+                          <div className="text-sm flex items-center gap-2">Date: <span className="border-b border-[#1e40af]/40 w-28 text-center text-slate-800">{new Date().toLocaleDateString('en-GB')}</span></div>
                       </div>
                   </div>
 
@@ -758,9 +714,7 @@
                           <div className="z-10 relative mt-2 print-break-inside-avoid">
                               <span className="font-semibold text-base">Digital Attachments on File :-</span>
                               <ul className="mt-1 ml-4 list-disc text-slate-800">
-                                  {formData.attachments.map(att => (
-                                      <li key={att.id}>{att.name} <span className="text-[10px] text-slate-500 ml-1">({att.date})</span></li>
-                                  ))}
+                                  {formData.attachments.map(att => ( <li key={att.id}>{att.name} <span className="text-[10px] text-slate-500 ml-1">({att.date})</span></li> ))}
                               </ul>
                           </div>
                       )}
