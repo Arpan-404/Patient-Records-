@@ -432,13 +432,16 @@
                   const token = await getOneDriveToken();
                   const file = await compressImage(originalFile);
 
-                  // FIX: Removed the deeply nested "PhysioCare_Files/" folder.
-                  // Now uploads straight to a single-level folder so Microsoft doesn't get confused.
+                  // FIX: DO NOT use folders at all. Upload directly to the root of the OneDrive.
+                  // We will rename the file itself to keep track of who it belongs to.
                   const safePatientName = (formData.name || 'Unknown_Patient').replace(/[^a-zA-Z0-9]/g, '_');
-                  const folderName = `PhysioCare_${formData.ipId}_${safePatientName}`;
                   const safeFileName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_'); 
                   
-                  const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${folderName}/${safeFileName}:/content`;
+                  // Example filename: IP_0001_Soma_Banerjee_xray_scan.jpg
+                  const finalFileName = `IP_${formData.ipId}_${safePatientName}_${safeFileName}`;
+                  
+                  // Upload directly to 'root' (No folders)
+                  const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${finalFileName}:/content`;
 
                   const response = await fetch(endpoint, {
                       method: 'PUT',
@@ -450,13 +453,16 @@
                       const errorData = await response.json();
                       const errorCode = errorData.error?.code || response.status;
                       const errorMsg = errorData.error?.message || "Unknown error";
-                      throw new Error(`Microsoft Error Code: [${errorCode}]\nMessage: ${errorMsg}\n\nFIX: If code is 'AccessDenied', you must go to Microsoft Entra -> API permissions -> Click 'Grant Admin Consent'.`);
+                      throw new Error(`Microsoft Error Code: [${errorCode}]\nMessage: ${errorMsg}`);
                   }
 
                   const data = await response.json();
 
                   const newAttachment = {
-                      id: data.id, name: file.name, url: data.webUrl, date: new Date().toLocaleDateString('en-GB')
+                      id: data.id, 
+                      name: file.name, // Keep the original name for the UI display
+                      url: data.webUrl, 
+                      date: new Date().toLocaleDateString('en-GB')
                   };
 
                   const updatedFormData = { ...formData, attachments: [...formData.attachments, newAttachment] };
@@ -660,21 +666,12 @@
                                  );
                               }
                               if (metric.type === 'ROM with VAS') {
-                                let entries = Array.isArray(cellValue) ? cellValue : [{ vas: '', rom: '' }];
-                                if (entries.length === 0) entries = [{ vas: '', rom: '' }];
+                                let entries = Array.isArray(cellValue) ? cellValue : [];
+                                if (entries.length === 0) return <td key={metric.id} className="border border-[#1e40af] text-center">-</td>;
                                 return (
-                                  <td key={metric.id} className="p-0 border border-slate-200 align-top">
-                                     <div className="flex flex-col h-full">
-                                       {entries.map((entry, idx) => (
-                                           <div key={idx} className="flex relative border-b border-slate-100 last:border-b-0 group bg-white min-h-[32px]">
-                                               <div className="flex-1 border-r border-slate-100"><div contentEditable suppressContentEditableWarning onBlur={e => updateComplexCellValue(record.id, metric.id, idx, 'vas', e.currentTarget.textContent)} className="editable-cell text-center p-1" data-placeholder="0/10">{entry.vas || ''}</div></div>
-                                               <div className="flex-1"><div contentEditable suppressContentEditableWarning onBlur={e => updateComplexCellValue(record.id, metric.id, idx, 'rom', e.currentTarget.textContent)} className="editable-cell text-center p-1" data-placeholder="0°">{entry.rom || ''}</div></div>
-                                               {entries.length > 1 && ( <button onClick={() => removeComplexEntry(record.id, metric.id, idx)} className="absolute -right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 bg-white rounded-full shadow-sm z-10 border border-slate-100 w-4 h-4 flex items-center justify-center"><i className="ph-bold ph-x text-[8px]"></i></button> )}
-                                           </div>
-                                       ))}
-                                       <button onClick={() => addComplexEntry(record.id, metric.id)} className="w-full bg-slate-50 hover:bg-slate-100 text-[9px] py-1 text-blue-600 border-t border-slate-100 uppercase tracking-wider font-semibold text-center">+ Add</button>
-                                     </div>
-                                  </td>
+                                    <td key={metric.id} className="p-0 border border-slate-200 align-top">
+                                        <div className="flex flex-col h-full min-h-[24px]">{entries.map((entry, idx) => ( <div key={idx} className="flex border-b border-[#1e40af]/30 last:border-b-0"><div className="flex-1 border-r border-[#1e40af]/30 flex items-center justify-center p-1">{entry.vas || '-'}</div><div className="flex-1 flex items-center justify-center p-1">{entry.rom ? `${entry.rom} (at)` : '-'}</div></div> ))}</div>
+                                    </td>
                                 );
                               }
                               return (
