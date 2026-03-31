@@ -70,7 +70,7 @@
             },
             cache: {
                 cacheLocation: "localStorage", 
-                storeAuthStateInCookie: true, // Changed to true for better mobile browser support
+                storeAuthStateInCookie: true, 
             }
         };
         const msalInstance = new msal.PublicClientApplication(msalConfig);
@@ -377,10 +377,9 @@
               }
           };
 
-          // Connect Microsoft OneDrive (using Redirect for better mobile compatibility)
+          // Connect Microsoft OneDrive
           const connectOneDrive = async () => {
               try {
-                  // Using loginRedirect instead of loginPopup to avoid mobile browser blocks
                   await msalInstance.loginPopup({ scopes: ["user.read", "Files.ReadWrite"] });
                   setIsOneDriveConnected(true);
               } catch (err) {
@@ -696,8 +695,10 @@
                       const errorData = await response.json();
                       console.error("Graph API Error Details:", errorData);
                       
-                      // Check specifically for permissions issues
-                      if (response.status === 403 || errorData.error?.code === "AccessDenied") {
+                      // 🚀 THE FIX FOR itemNotFound: Catch unprovisioned drives
+                      if (errorData.error?.code === "itemNotFound") {
+                          throw new Error("Microsoft hasn't created your 5TB drive yet!\n\nTHE FIX:\n1. Open a new tab and go to www.office.com\n2. Log in with your Therapeutic_Moves email.\n3. Click the App Launcher (9 dots, top left) and click 'OneDrive'.\n4. Once your empty OneDrive loads, come back and try uploading again!");
+                      } else if (response.status === 403 || errorData.error?.code === "AccessDenied") {
                           throw new Error("ACCESS DENIED: Microsoft says you don't have permission. Please go to Entra -> App Registrations -> API Permissions -> Click 'Grant admin consent'.");
                       } else {
                           throw new Error(`${errorData.error?.code}: ${errorData.error?.message}`);
@@ -1461,5 +1462,6 @@
     </script>
 </body>
 </html>
+
 
 
