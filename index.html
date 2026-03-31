@@ -10,6 +10,8 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <script src="https://alcdn.msauth.net/browser/2.37.1/js/msal-browser.min.js"></script>
 
     <style>
         /* Print-specific styles to ensure the background borders and layout match a physical A4 page */
@@ -57,6 +59,20 @@
     <script type="text/babel" data-type="module">
         const { useState, useEffect, useRef } = React;
 
+        // --- MICROSOFT ONEDRIVE CONFIGURATION ---
+        const msalConfig = {
+            auth: {
+                clientId: "898a7ee9-4082-4e8a-9437-b6923fc83a87", // Your Developer Client ID
+                authority: "https://login.microsoftonline.com/common",
+                redirectUri: window.location.origin + window.location.pathname
+            },
+            cache: {
+                cacheLocation: "localStorage", 
+                storeAuthStateInCookie: false, 
+            }
+        };
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
+
         // --- FIREBASE IMPORTS ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCustomToken, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -64,7 +80,6 @@
 
         // --- FIREBASE CONFIGURATION ---
         let firebaseConfig;
-        
         if (typeof __firebase_config !== 'undefined') {
             firebaseConfig = JSON.parse(__firebase_config);
         } else {
@@ -268,12 +283,13 @@
           const [searchQuery, setSearchQuery] = useState('');
           const [isSaving, setIsSaving] = useState(false);
           
-          // Firebase Auth State
+          // Firebase & Microsoft Auth State
           const [user, setUser] = useState(null);
           const [isConnecting, setIsConnecting] = useState(true);
           const [loginError, setLoginError] = useState("");
+          const [isOneDriveConnected, setIsOneDriveConnected] = useState(false);
 
-          // 1. Authenticate with Firebase on load
+          // 1. Authenticate with Firebase & Check MSAL on load
           useEffect(() => {
             const initAuth = async () => {
               if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -284,7 +300,13 @@
             };
             initAuth();
 
-            // Listen for login/logout state changes
+            // Check if OneDrive was connected previously
+            const accounts = msalInstance.getAllAccounts();
+            if (accounts.length > 0) {
+                setIsOneDriveConnected(true);
+            }
+
+            // Listen for Firebase login/logout state changes
             const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
               setUser(currentUser);
               setIsConnecting(false);
@@ -303,7 +325,7 @@
               snapshot.forEach(doc => {
                   const p = doc.data();
                   
-                  // 🔥 FIX FOR NESTED ARRAYS: Parse stringified table rows back into arrays when downloading
+                  // Parse stringified table rows back into arrays when downloading
                   if (p.customTables) {
                       p.customTables = p.customTables.map(t => {
                           let parsedRows = [['', '']];
@@ -346,6 +368,33 @@
               }
           };
 
+          // Connect Microsoft OneDrive
+          const connectOneDrive = async () => {
+              try {
+                  await msalInstance.loginPopup({ scopes: ["user.read", "Files.ReadWrite"] });
+                  setIsOneDriveConnected(true);
+              } catch (err) {
+                  console.error(err);
+                  alert("Failed to connect OneDrive. Please allow popups for this site and try again.");
+              }
+          };
+
+          // Get fresh token for OneDrive API
+          const getOneDriveToken = async () => {
+              const accounts = msalInstance.getAllAccounts();
+              if (accounts.length === 0) throw new Error("Not logged into OneDrive");
+              
+              const request = { scopes: ["Files.ReadWrite"], account: accounts[0] };
+              try {
+                  const response = await msalInstance.acquireTokenSilent(request);
+                  return response.accessToken;
+              } catch (e) {
+                  // Fallback to popup if silent token refresh fails
+                  const response = await msalInstance.acquireTokenPopup(request);
+                  return response.accessToken;
+              }
+          };
+
           // --- App Handlers ---
           const handleCreatePatient = () => {
             const nextNum = patients.length === 0 ? 1 : Math.max(...patients.map(p => parseInt(p.ipId, 10) || 0)) + 1;
@@ -358,7 +407,7 @@
               chiefComplaints: '', history: '', assessmentNote: '', diagnosis: '',
               treatmentNote: '', 
               customTables: [], 
-              trackedMetrics: [], records: []
+              trackedMetrics: [], records: [], attachments: [] // Added attachments array
             };
             
             setPatients([...patients, newPatient]);
@@ -374,23 +423,17 @@
           const handleSavePatient = async (updatedPatient) => {
             setIsSaving(true);
             
-            // Immediately update local UI state to feel responsive
             setPatients(prev => {
                 const exists = prev.find(p => p.id === updatedPatient.id);
                 if (exists) return prev.map(p => p.id === updatedPatient.id ? updatedPatient : p);
                 return [...prev, updatedPatient];
             });
 
-            setCurrentView('home');
-            setActivePatientId(null);
-
             if (user) {
               try {
-                // Create a clean copy to send to Firebase
                 const patientToSave = { ...updatedPatient };
                 
-                // 🔥 FIX FOR NESTED ARRAYS: Firestore throws an error if we try to save arrays inside arrays.
-                // We must stringify the custom table rows before saving to the cloud.
+                // Stringify tables for Firebase
                 if (patientToSave.customTables) {
                     patientToSave.customTables = patientToSave.customTables.map(t => ({
                         ...t,
@@ -398,7 +441,6 @@
                     }));
                 }
 
-                // Remove any accidental undefined values that break Firestore
                 Object.keys(patientToSave).forEach(key => {
                     if (patientToSave[key] === undefined) {
                         delete patientToSave[key];
@@ -407,7 +449,6 @@
 
                 const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'patients', updatedPatient.id);
                 await setDoc(docRef, patientToSave);
-                console.log("Successfully saved to Firestore!");
 
               } catch(e) {
                 console.error("Failed to save patient to cloud: ", e);
@@ -494,7 +535,14 @@
                 {currentView === 'home' ? (
                   <HomeView patients={filteredPatients} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onOpenPatient={handleOpenPatient} />
                 ) : (
-                  <PatientDetailView patient={patients.find(p => p.id === activePatientId)} onSave={handleSavePatient} onCancel={() => { setCurrentView('home'); setActivePatientId(null); }} />
+                  <PatientDetailView 
+                      patient={patients.find(p => p.id === activePatientId)} 
+                      onSave={handleSavePatient} 
+                      onCancel={() => { setCurrentView('home'); setActivePatientId(null); }} 
+                      isOneDriveConnected={isOneDriveConnected}
+                      connectOneDrive={connectOneDrive}
+                      getOneDriveToken={getOneDriveToken}
+                  />
                 )}
               </main>
             </div>
@@ -546,25 +594,91 @@
         }
 
         // --- PATIENT DETAIL VIEW (Includes Digital & Print versions) ---
-        function PatientDetailView({ patient, onSave, onCancel }) {
+        function PatientDetailView({ patient, onSave, onCancel, isOneDriveConnected, connectOneDrive, getOneDriveToken }) {
           const [formData, setFormData] = useState({
               ...patient, 
               customTables: patient.customTables || [],
-              treatmentNote: patient.treatmentNote || ''
+              treatmentNote: patient.treatmentNote || '',
+              attachments: patient.attachments || [] // NEW: Attachments array
           });
           const [isMetricModalOpen, setIsMetricModalOpen] = useState(false);
+          const [uploadingFile, setUploadingFile] = useState(false);
 
           const handleInputChange = (e) => {
             const { name, value } = e;
             setFormData((prev) => ({ ...prev, [name]: value }));
           };
 
-          // Custom Table Management
+          // --- MICROSOFT ONEDRIVE FILE UPLOAD LOGIC ---
+          const handleFileUpload = async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+
+              setUploadingFile(true);
+              try {
+                  const token = await getOneDriveToken();
+                  
+                  // Clean up patient name for the folder name
+                  const safePatientName = (formData.name || 'Unknown_Patient').replace(/[^a-zA-Z0-9]/g, '_');
+                  const folderName = `IP_${formData.ipId}_${safePatientName}`;
+                  const safeFileName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_'); // remove special chars from file
+                  
+                  // Graph API endpoint to upload file to OneDrive
+                  const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/PhysioCare_Files/${folderName}/${safeFileName}:/content`;
+
+                  const response = await fetch(endpoint, {
+                      method: 'PUT',
+                      headers: {
+                          'Authorization': `Bearer ${token}`,
+                          'Content-Type': file.type
+                      },
+                      body: file
+                  });
+
+                  if (!response.ok) throw new Error("Upload failed. OneDrive might be full or restricted.");
+
+                  const data = await response.json();
+
+                  // Grab the webUrl (direct viewing link) from OneDrive response
+                  const newAttachment = {
+                      id: data.id,
+                      name: file.name,
+                      url: data.webUrl,
+                      date: new Date().toLocaleDateString('en-GB')
+                  };
+
+                  const updatedFormData = {
+                      ...formData,
+                      attachments: [...formData.attachments, newAttachment]
+                  };
+                  
+                  setFormData(updatedFormData);
+                  onSave(updatedFormData); // Save the link to Firebase instantly
+
+              } catch (err) {
+                  console.error(err);
+                  alert("Upload failed. Please ensure you have granted OneDrive permissions.");
+              }
+              setUploadingFile(false);
+              e.target.value = null; // reset input
+          };
+
+          const removeAttachment = (attachmentId) => {
+              // Note: This only deletes the link from Firebase. The actual file remains safely in your OneDrive.
+              const updatedFormData = {
+                  ...formData,
+                  attachments: formData.attachments.filter(a => a.id !== attachmentId)
+              };
+              setFormData(updatedFormData);
+              onSave(updatedFormData);
+          };
+
+          // --- Custom Table Management ---
           const handleAddCustomTable = (section) => {
               const newTable = {
                   id: crypto.randomUUID(),
                   section: section,
-                  title: '', // Removed default title as requested
+                  title: '', 
                   headers: ['Column 1', 'Column 2'],
                   rows: [['', ''], ['', '']]
               };
@@ -585,7 +699,7 @@
               }));
           };
 
-          // Reassessment Core Tracker Management
+          // --- Reassessment Core Tracker Management ---
           const addMetricColumn = (metricObj) => {
             setFormData(prev => ({ ...prev, trackedMetrics: [...prev.trackedMetrics, metricObj] }));
             setIsMetricModalOpen(false);
@@ -714,6 +828,53 @@
                   </div>
                 </section>
 
+                {/* --- ATTACHMENTS SECTION (NEW) --- */}
+                <section className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <div className="flex items-center gap-2 text-purple-700">
+                          <i className="ph-bold ph-paperclip text-base"></i>
+                          <h2 className="font-semibold text-sm">Attachments & X-Rays</h2>
+                      </div>
+                      
+                      {!isOneDriveConnected ? (
+                          <button onClick={connectOneDrive} className="text-[11px] font-semibold bg-purple-100 text-purple-700 px-3 py-1.5 rounded hover:bg-purple-200 flex items-center gap-1.5 shadow-sm border border-purple-200">
+                              <i className="ph-bold ph-cloud-arrow-up text-sm"></i> Connect OneDrive
+                          </button>
+                      ) : (
+                          <div>
+                              <input type="file" id="file-upload" className="hidden" onChange={handleFileUpload} accept="image/*,.pdf" />
+                              <label htmlFor="file-upload" className="text-[11px] font-semibold bg-purple-600 text-white px-3 py-1.5 rounded hover:bg-purple-700 cursor-pointer flex items-center gap-1.5 shadow-sm transition-colors">
+                                  {uploadingFile ? <i className="ph-bold ph-spinner-gap animate-spin text-sm"></i> : <i className="ph-bold ph-upload-simple text-sm"></i>}
+                                  {uploadingFile ? 'Uploading to Cloud...' : 'Upload File'}
+                              </label>
+                          </div>
+                      )}
+                  </div>
+
+                  {formData.attachments && formData.attachments.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                          {formData.attachments.map(att => (
+                              <div key={att.id} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-lg group">
+                                  <div className="flex flex-col truncate pr-3 flex-1">
+                                      <span className="text-[11px] font-semibold text-slate-700 truncate" title={att.name}>{att.name}</span>
+                                      <span className="text-[9px] text-slate-400 font-medium">{att.date}</span>
+                                  </div>
+                                  <div className="flex gap-1.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <a href={att.url} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-white border border-slate-200 rounded text-blue-600 hover:bg-blue-50 shadow-sm" title="View File">
+                                          <i className="ph-bold ph-eye text-[11px]"></i>
+                                      </a>
+                                      <button onClick={() => removeAttachment(att.id)} className="p-1.5 bg-white border border-slate-200 rounded text-red-500 hover:bg-red-50 shadow-sm" title="Remove Link">
+                                          <i className="ph-bold ph-trash text-[11px]"></i>
+                                      </button>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  ) : (
+                      <p className="text-xs text-slate-400 italic">No files attached yet. Connect OneDrive to securely upload X-Rays and reports.</p>
+                  )}
+                </section>
+
                 {/* Assessment Block */}
                 <section className="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
@@ -726,7 +887,7 @@
                   
                   <textarea name="assessmentNote" value={formData.assessmentNote} onChange={(e) => handleInputChange(e.target)} rows="2" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none resize-none min-h-[60px]" placeholder="Detailed assessment notes..."></textarea>
                   
-                  {/* Dynamic Assessment Tables - Flex Wrap Container for Side-by-Side layout */}
+                  {/* Dynamic Assessment Tables */}
                   {formData.customTables.filter(t => t.section === 'assessment').length > 0 && (
                       <div className="flex flex-wrap items-start gap-4 mt-3">
                           {formData.customTables.filter(t => t.section === 'assessment').map(table => (
@@ -752,7 +913,7 @@
                   </div>
                   <textarea name="treatmentNote" value={formData.treatmentNote} onChange={(e) => handleInputChange(e.target)} rows="2" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none resize-none min-h-[60px]" placeholder="Treatment goals, planned exercises, electrotherapy modalities used..."></textarea>
                   
-                  {/* Dynamic Treatment Tables - Flex Wrap Container */}
+                  {/* Dynamic Treatment Tables */}
                   {formData.customTables.filter(t => t.section === 'treatment').length > 0 && (
                       <div className="flex flex-wrap items-start gap-4 mt-3">
                           {formData.customTables.filter(t => t.section === 'treatment').map(table => (
@@ -779,7 +940,7 @@
                     </div>
                   </div>
 
-                  {/* Custom Reassessment Tables - Flex Wrap Container */}
+                  {/* Custom Reassessment Tables */}
                   {formData.customTables.filter(t => t.section === 'reassessment').length > 0 && (
                       <div className="flex flex-wrap items-start gap-4 p-3 bg-white border-b border-slate-200">
                           {formData.customTables.filter(t => t.section === 'reassessment').map(table => (
@@ -1005,6 +1166,18 @@
                               </div>
                           )}
                       </div>
+
+                      {/* Printed Attachments Summary */}
+                      {formData.attachments && formData.attachments.length > 0 && (
+                          <div className="z-10 relative mt-2 print-break-inside-avoid">
+                              <span className="font-semibold text-base">Digital Attachments on File :-</span>
+                              <ul className="mt-1 ml-4 list-disc text-slate-800">
+                                  {formData.attachments.map(att => (
+                                      <li key={att.id}>{att.name} <span className="text-[10px] text-slate-500 ml-1">({att.date})</span></li>
+                                  ))}
+                              </ul>
+                          </div>
+                      )}
 
                       {/* Re-Assessment Print Section */}
                       <div className="z-10 relative mt-auto print-break-inside-avoid">
