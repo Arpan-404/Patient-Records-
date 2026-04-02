@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PhysioCare Tracker</title>
     
-    <!-- React & Tailwind -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -217,7 +215,9 @@
             const nextNum = patients.length === 0 ? 1 : Math.max(...patients.map(p => parseInt(p.ipId, 10) || 0)) + 1;
             const newIpId = String(nextNum).padStart(4, '0');
             const newPatient = {
-              id: crypto.randomUUID(), ipId: newIpId, name: '', age: '', gender: '', contact: '',
+              id: crypto.randomUUID(), ipId: newIpId, 
+              date: new Date().toISOString().split('T')[0], // Assigns today's date upon creation
+              name: '', age: '', gender: '', contact: '',
               chiefComplaints: '', history: '', assessmentNote: '', diagnosis: '',
               treatmentNote: '', customTables: [], trackedMetrics: [], records: [] 
             };
@@ -352,7 +352,6 @@
               treatmentNote: patient.treatmentNote || ''
           });
           const [isMetricModalOpen, setIsMetricModalOpen] = useState(false);
-          const [printDate, setPrintDate] = useState(new Date().toISOString().split('T')[0]);
 
           const handleInputChange = (e) => { const { name, value } = e; setFormData((prev) => ({ ...prev, [name]: value })); };
 
@@ -375,7 +374,7 @@
           const addComplexEntry = (recordId, metricId) => { setFormData(prev => ({ ...prev, records: prev.records.map(rec => { if (rec.id !== recordId) return rec; let newValues = { ...rec.values }; let entries = Array.isArray(newValues[metricId]) ? [...newValues[metricId]] : []; entries.push({ vas: '', rom: '' }); newValues[metricId] = entries; return { ...rec, values: newValues }; }) })); };
           const removeComplexEntry = (recordId, metricId, index) => { setFormData(prev => ({ ...prev, records: prev.records.map(rec => { if (rec.id !== recordId) return rec; let newValues = { ...rec.values }; let entries = Array.isArray(newValues[metricId]) ? [...newValues[metricId]] : []; entries.splice(index, 1); newValues[metricId] = entries; return { ...rec, values: newValues }; }) })); };
 
-          const formattedPrintDate = printDate ? new Date(printDate).toLocaleDateString('en-GB') : '';
+          const formattedPrintDate = formData.date ? new Date(formData.date).toLocaleDateString('en-GB') : '';
 
           return (
             <div>
@@ -530,8 +529,8 @@
 
                 <div className="flex flex-wrap gap-3 justify-end pt-2 pb-8">
                   <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm mr-auto sm:mr-0">
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Print Date:</span>
-                      <input type="date" value={printDate} onChange={(e) => setPrintDate(e.target.value)} className="text-sm font-medium text-slate-700 bg-transparent outline-none cursor-pointer" />
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Date:</span>
+                      <input type="date" name="date" value={formData.date || ''} onChange={(e) => handleInputChange(e.target)} className="text-sm font-medium text-slate-700 bg-transparent outline-none cursor-pointer" />
                   </div>
                   <button className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 shadow-sm" onClick={() => window.print()}><i className="ph-bold ph-printer text-base"></i> Print</button>
                   <button onClick={() => onSave(formData)} className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm shadow-blue-200"><i className="ph-bold ph-floppy-disk text-base"></i> Save to Cloud</button>
@@ -602,9 +601,7 @@
                                   <div className="flex flex-col gap-6">
                                       
                                       <div className="z-10 relative print-break-inside-avoid text-[#1e40af]">
-                                          <div className="flex items-start">
-                                              <span className="font-bold text-[20px]">Chief Complaint :-</span>
-                                          </div>
+                                          <span className="font-bold text-[20px]">Chief Complaint :-</span>
                                           <p className="mt-2 ml-4 text-slate-900 text-[18px]">{formData.chiefComplaints || "\u00A0"}</p>
                                       </div>
 
@@ -758,6 +755,3 @@
     </script>
 </body>
 </html>
-
-
-```
