@@ -589,43 +589,28 @@
                       {/* --- REPEATING TABLE HEADER --- */}
                       <thead className="print-table-header">
                           <tr>
-                              <td className="pb-4">
-                                  {/* MAIN DOCTOR INFO HEADER */}
-                                  <div className="flex justify-between items-start pb-2">
-                                      <div>
-                                          <h1 className="text-[22px] font-bold italic tracking-wide text-[#1e40af]">Dr. Arpan Das (PT)</h1>
-                                          <p className="text-[13px] mt-0.5 font-bold text-[#1e40af]">BPT (KPC Medical College and Hospital)</p>
-                                          <p className="text-[13px] font-bold text-[#1e40af]">Consultant Physiotherapist</p>
-                                      </div>
-                                      <div className="text-right flex flex-col items-end text-[#1e40af]">
-                                          <div className="flex items-center gap-1.5 font-bold text-[14px]">
-                                              <i className="ph-fill ph-phone-call text-[16px]"></i> +91 9641568109
-                                          </div>
-                                          <div className="text-[13px] flex items-center gap-2 font-bold mt-1">
-                                              <span>Date:</span> <span className="border-b border-[#1e40af] w-24 text-center text-black pb-0.5">{formattedPrintDate}</span>
-                                          </div>
-                                      </div>
-                                  </div>
-
-                                  <div className="border-b-[1.5px] border-[#1e40af] mb-3"></div>
-
-                                  {/* Patient Info Row */}
+                              <td className="pb-4 pt-2">
+                                  {/* Patient Info Row (Doctor Info Removed) */}
                                   <div className="flex justify-between items-end pb-2 text-[13px] font-bold text-[#1e40af]">
                                       <div className="flex-1 flex items-end">
-                                          <span className="whitespace-nowrap">Patient's name:</span> 
+                                          <span className="whitespace-nowrap">Patient:</span> 
                                           <span className="border-b border-[#1e40af] flex-1 ml-2 mr-4 px-2 text-black pb-0.5">{formData.name}</span>
                                       </div>
                                       <div className="w-24 flex items-end">
                                           <span className="whitespace-nowrap">Age:</span> 
                                           <span className="border-b border-[#1e40af] flex-1 ml-2 mr-4 px-1 text-center text-black pb-0.5">{formData.age}</span>
                                       </div>
-                                      <div className="w-36 flex items-end">
-                                          <span className="whitespace-nowrap">Gender:</span> 
+                                      <div className="w-32 flex items-end">
+                                          <span className="whitespace-nowrap">Sex:</span> 
                                           <span className="border-b border-[#1e40af] flex-1 ml-2 mr-4 px-1 text-center text-black pb-0.5">{formData.gender}</span>
                                       </div>
-                                      <div className="w-32 flex items-end">
+                                      <div className="w-28 flex items-end">
                                           <span className="whitespace-nowrap">UPID:</span> 
-                                          <span className="border-b border-[#1e40af] flex-1 ml-2 px-1 text-center text-black pb-0.5">{formData.ipId}</span>
+                                          <span className="border-b border-[#1e40af] flex-1 ml-2 mr-4 px-1 text-center text-black pb-0.5">{formData.ipId}</span>
+                                      </div>
+                                      <div className="w-32 flex items-end">
+                                          <span className="whitespace-nowrap">Date:</span> 
+                                          <span className="border-b border-[#1e40af] flex-1 ml-2 px-1 text-center text-black pb-0.5">{formattedPrintDate}</span>
                                       </div>
                                   </div>
 
