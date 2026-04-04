@@ -24,7 +24,7 @@
                 break-inside: avoid;
                 page-break-inside: avoid;
             }
-            /* Allows headers to repeat on every page */
+            /* Allows patient info to repeat on every page */
             thead.print-table-header { display: table-header-group; }
             table { page-break-inside: auto; }
             tr { page-break-inside: avoid; page-break-after: auto; }
@@ -364,7 +364,6 @@
           
           const [isMetricModalOpen, setIsMetricModalOpen] = useState(false);
           const [activeReassessmentTableId, setActiveReassessmentTableId] = useState(null);
-          const [printDate, setPrintDate] = useState(new Date().toISOString().split('T')[0]);
 
           const handleInputChange = (e) => { const { name, value } = e; setFormData((prev) => ({ ...prev, [name]: value })); };
 
@@ -395,7 +394,20 @@
           const removeDateRow = (tableId, recordId) => { setFormData(prev => ({ ...prev, reassessmentTables: prev.reassessmentTables.map(t => t.id === tableId ? { ...t, records: t.records.filter(r => r.id !== recordId) } : t) })); };
           const updateRecordDate = (tableId, recordId, newDate) => { setFormData(prev => ({ ...prev, reassessmentTables: prev.reassessmentTables.map(t => { if (t.id !== tableId) return t; return { ...t, records: t.records.map(r => r.id === recordId ? { ...r, date: newDate } : r) }; }) })); };
           const updateSimpleCellValue = (tableId, recordId, metricId, value) => { setFormData(prev => ({ ...prev, reassessmentTables: prev.reassessmentTables.map(t => { if (t.id !== tableId) return t; return { ...t, records: t.records.map(rec => { if (rec.id !== recordId) return rec; return { ...rec, values: { ...rec.values, [metricId]: value } }; })}; }) })); };
-          const updateBilateralCellValue = (tableId, recordId, metricId, side, value) => { setFormData(prev => ({ ...prev, reassessmentTables: prev.reassessmentTables.map(t => { if (t.id !== tableId) return t; return { ...t, records: t.records.map(rec => { if (rec.id !== recordId) return rec; let newValues = { ...rec.values }; let currentVal = newValues[metricId] || { r: '', l: '' }; newValues[metricId] = { ...currentVal, [side]: value }; return { ...rec, values: newValues }; })}; }) })); };
+          
+          // Reusable function for multi-field cells (L/R or VAS/ROM)
+          const updateMultiFieldCellValue = (tableId, recordId, metricId, subField, value) => { 
+              setFormData(prev => ({ ...prev, reassessmentTables: prev.reassessmentTables.map(t => { 
+                  if (t.id !== tableId) return t; 
+                  return { ...t, records: t.records.map(rec => { 
+                      if (rec.id !== recordId) return rec; 
+                      let newValues = { ...rec.values }; 
+                      let currentVal = newValues[metricId] || {}; 
+                      newValues[metricId] = { ...currentVal, [subField]: value }; 
+                      return { ...rec, values: newValues }; 
+                  })}; 
+              }) })); 
+          };
 
           const formattedPrintDate = formData.date ? new Date(formData.date).toLocaleDateString('en-GB') : '';
 
@@ -524,20 +536,21 @@
                                          return (
                                            <td key={metric.id} className="p-0 border border-slate-200 align-top">
                                               <div className="flex h-full min-h-[32px]">
-                                                  <div className="flex-1 border-r border-slate-200"><div contentEditable suppressContentEditableWarning onBlur={e => updateBilateralCellValue(rtable.id, record.id, metric.id, 'r', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="-">{cellValue?.r || ''}</div></div>
-                                                  <div className="flex-1"><div contentEditable suppressContentEditableWarning onBlur={e => updateBilateralCellValue(rtable.id, record.id, metric.id, 'l', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="-">{cellValue?.l || ''}</div></div>
+                                                  <div className="flex-1 border-r border-slate-200"><div contentEditable suppressContentEditableWarning onBlur={e => updateMultiFieldCellValue(rtable.id, record.id, metric.id, 'r', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="-">{cellValue?.r || ''}</div></div>
+                                                  <div className="flex-1"><div contentEditable suppressContentEditableWarning onBlur={e => updateMultiFieldCellValue(rtable.id, record.id, metric.id, 'l', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="-">{cellValue?.l || ''}</div></div>
                                               </div>
                                            </td>
                                          );
                                       }
                                       if (metric.type === 'ROM with VAS') {
-                                        let entries = Array.isArray(cellValue) ? cellValue : [];
-                                        if (entries.length === 0) return <td key={metric.id} className="border border-[#1e40af] text-center">-</td>;
                                         return (
-                                            <td key={metric.id} className="p-0 border border-slate-200 align-top">
-                                                <div className="flex flex-col h-full min-h-[24px]">{entries.map((entry, idx) => ( <div key={idx} className="flex border-b border-[#1e40af]/30 last:border-b-0"><div className="flex-1 border-r border-[#1e40af]/30 flex items-center justify-center p-1">{entry.vas || '-'}</div><div className="flex-1 flex items-center justify-center p-1">{entry.rom ? `${entry.rom} (at)` : '-'}</div></div> ))}</div>
-                                            </td>
-                                        );
+                                           <td key={metric.id} className="p-0 border border-slate-200 align-top">
+                                              <div className="flex h-full min-h-[32px]">
+                                                  <div className="flex-1 border-r border-slate-200"><div contentEditable suppressContentEditableWarning onBlur={e => updateMultiFieldCellValue(rtable.id, record.id, metric.id, 'vas', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="VAS">{cellValue?.vas || ''}</div></div>
+                                                  <div className="flex-1"><div contentEditable suppressContentEditableWarning onBlur={e => updateMultiFieldCellValue(rtable.id, record.id, metric.id, 'rom', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="ROM">{cellValue?.rom || ''}</div></div>
+                                              </div>
+                                           </td>
+                                         );
                                       }
                                       return (
                                         <td key={metric.id} className="p-0 border border-slate-200 align-top bg-white">
@@ -577,34 +590,32 @@
               {/* --- 🖨️ PRINT VIEW (Hidden on Screen, Visible on Print) --- */}
               <div className="hidden print:block bg-white text-[#1e40af] text-[16px] font-sans h-full w-full relative">
                   
-                  {/* Absolute positioning means this date will ONLY render on the very first page of the printout */}
-                  <div className="absolute right-0 top-[38px] text-[16px] flex items-center gap-2 font-semibold text-[#1e40af] z-50">
-                      <span>Date:</span> <span className="border-b border-[#1e40af] w-28 text-center text-slate-800 font-bold pb-0.5">{formattedPrintDate}</span>
+                  {/* MAIN DOCTOR INFO HEADER - Renders ONLY once at the very top of the document */}
+                  <div className="flex justify-between items-start pb-2">
+                      <div>
+                          <h1 className="text-[38px] font-bold italic tracking-wide text-[#1e40af]" style={{ textShadow: "0px 0px 1px #1e40af", lineHeight: "1" }}>Dr. Arpan Das (PT)</h1>
+                          <p className="text-[16px] mt-2 font-bold text-[#1e40af]">BPT (KPC Medical College and Hospital)</p>
+                          <p className="text-[16px] font-bold text-[#1e40af]">Consultant Physiotherapist</p>
+                      </div>
+                      <div className="text-right flex flex-col items-end text-[#1e40af] pt-1">
+                          <div className="flex items-center gap-1.5 font-black text-2xl mb-6">
+                              <i className="ph-fill ph-phone-call text-[28px]"></i> +91 9641568109
+                          </div>
+                          {/* Date placed securely inside the top header block */}
+                          <div className="text-[16px] flex items-center gap-2 font-semibold">
+                              <span>Date:</span> <span className="border-b border-[#1e40af] w-28 text-center text-slate-800 font-bold pb-0.5">{formattedPrintDate}</span>
+                          </div>
+                      </div>
                   </div>
 
+                  {/* Thin Solid Line */}
+                  <div className="border-b border-[#1e40af] mb-1.5"></div>
+
                   <table className="w-full text-left border-collapse">
-                      {/* --- REPEATING TABLE HEADER --- */}
+                      {/* --- REPEATING TABLE HEADER (PATIENT DATA ONLY) --- */}
                       <thead className="print-table-header">
                           <tr>
                               <td className="pb-4">
-                                  {/* Top Header */}
-                                  <div className="flex justify-between items-start pb-2">
-                                      <div>
-                                          <h1 className="text-[38px] font-bold italic tracking-wide text-[#1e40af]" style={{ textShadow: "0px 0px 1px #1e40af", lineHeight: "1" }}>Dr. Arpan Das (PT)</h1>
-                                          <p className="text-[16px] mt-2 font-bold text-[#1e40af]">BPT (KPC Medical College and Hospital)</p>
-                                          <p className="text-[16px] font-bold text-[#1e40af]">Consultant Physiotherapist</p>
-                                      </div>
-                                      <div className="text-right flex flex-col items-end text-[#1e40af] pt-1">
-                                          {/* The mb-8 ensures there is enough space below the phone number for the absolute Date on page 1 */}
-                                          <div className="flex items-center gap-1.5 font-black text-2xl mb-8">
-                                              <i className="ph-fill ph-phone-call text-[28px]"></i> +91 9641568109
-                                          </div>
-                                      </div>
-                                  </div>
-
-                                  {/* Thin Solid Line */}
-                                  <div className="border-b border-[#1e40af] mb-1.5"></div>
-
                                   {/* Patient Info Row */}
                                   <div className="flex justify-between items-end pb-2 pt-2 text-[16px] font-bold text-[#1e40af]">
                                       <div className="flex-1 flex items-end">
@@ -695,7 +706,7 @@
                                                                     <div className="flex flex-col h-full justify-between">
                                                                         <span className="leading-tight px-1 mb-1.5 pt-1">{metric.title}</span>
                                                                         {metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT') && ( <div className="flex w-full border-t border-[#1e40af] text-[14px] text-[#1e40af] mt-auto"><div className="flex-1 py-1 border-r border-[#1e40af] font-bold">R</div><div className="flex-1 py-1 font-bold">L</div></div> )}
-                                                                        {metric.type === 'ROM with VAS' && ( <div className="flex w-full border-t border-[#1e40af] text-[14px] text-[#1e40af] mt-auto"><div className="flex-1 py-1 border-r border-[#1e40af] font-bold">VAS</div><div className="flex-1 py-1 font-bold">Treatment</div></div> )}
+                                                                        {metric.type === 'ROM with VAS' && ( <div className="flex w-full border-t border-[#1e40af] text-[14px] text-[#1e40af] mt-auto"><div className="flex-1 py-1 border-r border-[#1e40af] font-bold">VAS</div><div className="flex-1 py-1 font-bold">ROM</div></div> )}
                                                                     </div>
                                                                 </th>
                                                             ))}
@@ -711,11 +722,12 @@
                                                                         return ( <td key={metric.id} className="p-0 border border-[#1e40af] align-top"><div className="flex h-full min-h-[32px]"><div className="flex-1 border-r border-[#1e40af] flex items-center justify-center p-1.5">{cellValue?.r || '-'}</div><div className="flex-1 flex items-center justify-center p-1.5">{cellValue?.l || '-'}</div></div></td> );
                                                                     }
                                                                     if (metric.type === 'ROM with VAS') {
-                                                                        let entries = Array.isArray(cellValue) ? cellValue : [];
-                                                                        if (entries.length === 0) return <td key={metric.id} className="border border-[#1e40af] text-center">-</td>;
                                                                         return (
                                                                             <td key={metric.id} className="p-0 border border-[#1e40af] align-top">
-                                                                                <div className="flex flex-col h-full min-h-[32px]">{entries.map((entry, idx) => ( <div key={idx} className="flex border-b border-[#1e40af]/40 last:border-b-0"><div className="flex-1 border-r border-[#1e40af]/40 flex items-center justify-center p-1.5">{entry.vas || '-'}</div><div className="flex-1 flex items-center justify-center p-1.5">{entry.rom ? `${entry.rom}` : '-'}</div></div> ))}</div>
+                                                                                <div className="flex h-full min-h-[32px]">
+                                                                                    <div className="flex-1 border-r border-[#1e40af] flex items-center justify-center p-1.5">{cellValue?.vas || '-'}</div>
+                                                                                    <div className="flex-1 flex items-center justify-center p-1.5">{cellValue?.rom || '-'}</div>
+                                                                                </div>
                                                                             </td>
                                                                         );
                                                                     }
@@ -818,5 +830,4 @@
     </script>
 </body>
 </html>
-
 
