@@ -609,12 +609,12 @@
                       {/* --- PATIENT INFO HEADER - REPEATS ON EVERY NEW PAGE --- */}
                       <thead className="print-table-header">
                           <tr>
-                              <td className="pb-5">
+                              <th className="pb-5 font-normal">
                                   {/* Patient Info Row */}
                                   <div className="flex justify-between items-end pb-2 text-[15px] font-bold text-[#1e40af]">
                                       <div className="flex-1 flex items-end">
                                           <span className="whitespace-nowrap">Patient's name:</span> 
-                                          <span className="border-b border-[#1e40af] flex-1 ml-2 mr-4 px-2 text-black pb-0.5">{formData.name}</span>
+                                          <span className="border-b border-[#1e40af] flex-1 ml-2 mr-4 px-2 text-black pb-0.5 text-left">{formData.name}</span>
                                       </div>
                                       <div className="w-24 flex items-end">
                                           <span className="whitespace-nowrap">Age:</span> 
@@ -631,7 +631,7 @@
                                   </div>
 
                                   <div className="border-b-[2px] border-[#1e40af]"></div>
-                              </td>
+                              </th>
                           </tr>
                       </thead>
 
@@ -706,7 +706,7 @@
                                                                         {metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT') && ( <div className="flex w-full border-t border-[#1e40af] text-[13px] mt-auto"><div className="flex-1 py-1 border-r border-[#1e40af] font-bold">R</div><div className="flex-1 py-1 font-bold">L</div></div> )}
                                                                         {metric.type === 'ROM with VAS' && ( <div className="flex w-full border-t border-[#1e40af] text-[13px] mt-auto"><div className="flex-1 py-1 border-r border-[#1e40af] font-bold">VAS</div><div className="flex-1 py-1 font-bold">ROM</div></div> )}
                                                                     </div>
-                                                                th>
+                                                                </th>
                                                             ))}
                                                         </tr>
                                                     </thead>
