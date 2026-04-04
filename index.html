@@ -125,7 +125,7 @@
                             <thead>
                                 <tr>
                                     {table.headers.map((h, i) => (
-                                        <th key={i} className="relative group border border-slate-200 p-0 bg-slate-50 print:border print:border-[#1e40af] print:bg-blue-50/30 print-break-inside-avoid">
+                                        <th key={i} className="relative group border border-slate-200 p-0 bg-slate-50 print:border print:border-[#1e40af] print:bg-white print-break-inside-avoid">
                                             <div contentEditable suppressContentEditableWarning onBlur={(e) => updateHeader(i, e.currentTarget.textContent)} className="editable-cell font-semibold text-slate-700 text-[12px] p-2 print:text-[#1e40af] print:font-bold print:text-[16px]" data-placeholder="Header">{h}</div>
                                             {table.headers.length > 1 && ( <button onClick={() => removeCol(i)} className="absolute -top-2 -right-2 bg-red-100 text-red-600 rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity print:hidden text-[8px] border border-red-200 z-10"><i className="ph-bold ph-x"></i></button> )}
                                         </th>
@@ -536,20 +536,20 @@
                                          return (
                                            <td key={metric.id} className="p-0 border border-slate-200 align-top">
                                               <div className="flex h-full min-h-[32px]">
-                                                  <div className="flex-1 border-r border-slate-200"><div contentEditable suppressContentEditableWarning onBlur={e => updateMultiFieldCellValue(rtable.id, record.id, metric.id, 'r', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="-">{cellValue?.r || ''}</div></div>
-                                                  <div className="flex-1"><div contentEditable suppressContentEditableWarning onBlur={e => updateMultiFieldCellValue(rtable.id, record.id, metric.id, 'l', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="-">{cellValue?.l || ''}</div></div>
+                                                  <div className="flex-1 border-r border-slate-200"><div contentEditable suppressContentEditableWarning onBlur={e => updateBilateralCellValue(rtable.id, record.id, metric.id, 'r', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="-">{cellValue?.r || ''}</div></div>
+                                                  <div className="flex-1"><div contentEditable suppressContentEditableWarning onBlur={e => updateBilateralCellValue(rtable.id, record.id, metric.id, 'l', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="-">{cellValue?.l || ''}</div></div>
                                               </div>
                                            </td>
                                          );
                                       }
                                       if (metric.type === 'ROM with VAS') {
                                         return (
-                                           <td key={metric.id} className="p-0 border border-slate-200 align-top">
-                                              <div className="flex h-full min-h-[32px]">
-                                                  <div className="flex-1 border-r border-slate-200"><div contentEditable suppressContentEditableWarning onBlur={e => updateMultiFieldCellValue(rtable.id, record.id, metric.id, 'vas', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="VAS">{cellValue?.vas || ''}</div></div>
-                                                  <div className="flex-1"><div contentEditable suppressContentEditableWarning onBlur={e => updateMultiFieldCellValue(rtable.id, record.id, metric.id, 'rom', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="ROM">{cellValue?.rom || ''}</div></div>
-                                              </div>
-                                           </td>
+                                            <td key={metric.id} className="p-0 border border-slate-200 align-top">
+                                                <div className="flex h-full min-h-[32px]">
+                                                    <div className="flex-1 border-r border-slate-200"><div contentEditable suppressContentEditableWarning onBlur={e => updateMultiFieldCellValue(rtable.id, record.id, metric.id, 'vas', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="VAS">{cellValue?.vas || ''}</div></div>
+                                                    <div className="flex-1"><div contentEditable suppressContentEditableWarning onBlur={e => updateMultiFieldCellValue(rtable.id, record.id, metric.id, 'rom', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="ROM">{cellValue?.rom || ''}</div></div>
+                                                </div>
+                                            </td>
                                          );
                                       }
                                       return (
@@ -590,7 +590,7 @@
               {/* --- 🖨️ PRINT VIEW (Hidden on Screen, Visible on Print) --- */}
               <div className="hidden print:block bg-white text-[#1e40af] text-[16px] font-sans h-full w-full relative">
                   
-                  {/* MAIN DOCTOR INFO HEADER - Renders ONLY once at the very top of the document */}
+                  {/* MAIN DOCTOR INFO HEADER - Renders ONLY once at the very top of the document, outside the repeating table */}
                   <div className="flex justify-between items-start pb-2">
                       <div>
                           <h1 className="text-[38px] font-bold italic tracking-wide text-[#1e40af]" style={{ textShadow: "0px 0px 1px #1e40af", lineHeight: "1" }}>Dr. Arpan Das (PT)</h1>
@@ -598,11 +598,11 @@
                           <p className="text-[16px] font-bold text-[#1e40af]">Consultant Physiotherapist</p>
                       </div>
                       <div className="text-right flex flex-col items-end text-[#1e40af] pt-1">
-                          <div className="flex items-center gap-1.5 font-black text-2xl mb-6">
+                          <div className="flex items-center gap-1.5 font-black text-2xl mb-2">
                               <i className="ph-fill ph-phone-call text-[28px]"></i> +91 9641568109
                           </div>
-                          {/* Date placed securely inside the top header block */}
-                          <div className="text-[16px] flex items-center gap-2 font-semibold">
+                          {/* Date placed securely inside the top header block so it doesn't repeat */}
+                          <div className="text-[16px] flex items-center gap-2 font-semibold pt-1">
                               <span>Date:</span> <span className="border-b border-[#1e40af] w-28 text-center text-slate-800 font-bold pb-0.5">{formattedPrintDate}</span>
                           </div>
                       </div>
@@ -648,18 +648,18 @@
                               <td className="pt-4 px-4">
                                   <div className="flex flex-col gap-6">
                                       
-                                      <div className="z-10 relative print-break-inside-avoid text-[#1e40af]">
-                                          <span className="font-bold text-[20px]">Chief Complaint :-</span>
+                                      <div className="z-10 relative print-break-inside-avoid">
+                                          <span className="font-bold text-[20px] text-[#1e40af]">Chief Complaint :-</span>
                                           <p className="mt-2 ml-4 text-slate-900 text-[18px]">{formData.chiefComplaints || "\u00A0"}</p>
                                       </div>
 
-                                      <div className="z-10 relative print-break-inside-avoid text-[#1e40af]">
-                                          <span className="font-bold text-[20px]">History :-</span>
+                                      <div className="z-10 relative print-break-inside-avoid">
+                                          <span className="font-bold text-[20px] text-[#1e40af]">History :-</span>
                                           <p className="mt-2 ml-4 text-slate-900 text-[18px]">{formData.history || "\u00A0"}</p>
                                       </div>
 
-                                      <div className="z-10 relative text-[#1e40af]">
-                                          <span className="font-bold text-[20px] block mb-2">Assessment :-</span>
+                                      <div className="z-10 relative">
+                                          <span className="font-bold text-[20px] text-[#1e40af] block mb-2">Assessment :-</span>
                                           <p className="mt-2 ml-4 text-slate-900 text-[18px] whitespace-pre-wrap">{formData.assessmentNote || "\u00A0"}</p>
                                           {formData.customTables.filter(t => t.section === 'assessment').length > 0 && (
                                               <div className="flex flex-wrap items-start gap-4 mt-4 ml-4">{formData.customTables.filter(t => t.section === 'assessment').map(table => (<CustomTableEditor key={table.id} table={table} updateTable={()=>{}} removeTable={()=>{}} />))}</div>
@@ -668,14 +668,14 @@
 
                                       {/* Diagnosis */}
                                       {formData.diagnosis && (
-                                          <div className="z-10 relative print-break-inside-avoid text-[#1e40af]">
-                                              <span className="font-bold text-[20px]">Diagnosis:</span>
+                                          <div className="z-10 relative print-break-inside-avoid">
+                                              <span className="font-bold text-[20px] text-[#1e40af]">Diagnosis:</span>
                                               <span className="ml-2 text-slate-900 font-bold text-[19px]">{formData.diagnosis}</span>
                                           </div>
                                       )}
 
-                                      <div className="z-10 relative print-break-inside-avoid text-[#1e40af]">
-                                          <span className="font-bold text-[20px] block mb-2">Treatment Plan / Advice :-</span>
+                                      <div className="z-10 relative print-break-inside-avoid">
+                                          <span className="font-bold text-[20px] text-[#1e40af] block mb-2">Treatment Plan / Advice :-</span>
                                           <p className="mt-2 ml-4 text-slate-900 text-[18px] whitespace-pre-wrap leading-relaxed">{formData.treatmentNote || "\u00A0"}</p>
                                           {formData.customTables.filter(t => t.section === 'treatment').length > 0 && (
                                               <div className="flex flex-wrap items-start gap-4 mt-4 ml-4">{formData.customTables.filter(t => t.section === 'treatment').map(table => (<CustomTableEditor key={table.id} table={table} updateTable={()=>{}} removeTable={()=>{}} />))}</div>
@@ -684,7 +684,7 @@
 
                                       {/* Re-Assessment Print Header & Custom Tables */}
                                       {(formData.reassessmentTables.length > 0 || formData.customTables.filter(t => t.section === 'reassessment').length > 0) && (
-                                          <div className="z-10 relative mt-6 text-[#1e40af] print-break-inside-avoid">
+                                          <div className="z-10 relative mt-6 print-break-inside-avoid">
                                               {formData.customTables.filter(t => t.section === 'reassessment').length > 0 && (
                                                   <div className="flex flex-wrap items-start gap-4 mb-6">{formData.customTables.filter(t => t.section === 'reassessment').map(table => (<CustomTableEditor key={table.id} table={table} updateTable={()=>{}} removeTable={()=>{}} />))}</div>
                                               )}
@@ -693,8 +693,8 @@
 
                                       {/* Multi-Table Reassessment Printing loop */}
                                       {formData.reassessmentTables.map((rtable, rIdx) => (
-                                          <div key={rtable.id} className="z-10 relative mt-4 text-[#1e40af] print-break-inside-avoid">
-                                              <span className="font-bold text-[20px] block mb-4">{rtable.title}</span>
+                                          <div key={rtable.id} className="z-10 relative mt-4 print-break-inside-avoid">
+                                              <span className="font-bold text-[20px] text-[#1e40af] block mb-4">{rtable.title}</span>
                                               
                                               {rtable.trackedMetrics.length > 0 ? (
                                                 <table className="w-full table-auto border-collapse text-[16px] text-slate-900 border border-[#1e40af]">
