@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PhysioCare Tracker</title>
     
-    <!-- React & Tailwind -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -24,7 +23,7 @@
                 break-inside: avoid;
                 page-break-inside: avoid;
             }
-            /* Allows patient info to repeat on every page */
+            /* Allows headers to repeat on every page */
             thead.print-table-header { display: table-header-group; }
             table { page-break-inside: auto; }
             tr { page-break-inside: avoid; page-break-after: auto; }
@@ -125,7 +124,7 @@
                             <thead>
                                 <tr>
                                     {table.headers.map((h, i) => (
-                                        <th key={i} className="relative group border border-slate-200 p-0 bg-slate-50 print:border print:border-[#1e40af] print:bg-white print-break-inside-avoid">
+                                        <th key={i} className="relative group border border-slate-200 p-0 bg-slate-50 print:border print:border-[#1e40af] print:bg-blue-50/30 print-break-inside-avoid">
                                             <div contentEditable suppressContentEditableWarning onBlur={(e) => updateHeader(i, e.currentTarget.textContent)} className="editable-cell font-semibold text-slate-700 text-[12px] p-2 print:text-[#1e40af] print:font-bold print:text-[16px]" data-placeholder="Header">{h}</div>
                                             {table.headers.length > 1 && ( <button onClick={() => removeCol(i)} className="absolute -top-2 -right-2 bg-red-100 text-red-600 rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity print:hidden text-[8px] border border-red-200 z-10"><i className="ph-bold ph-x"></i></button> )}
                                         </th>
@@ -220,7 +219,7 @@
               date: new Date().toISOString().split('T')[0], // Assigns today's date upon creation
               name: '', age: '', gender: '', contact: '',
               chiefComplaints: '', history: '', assessmentNote: '', diagnosis: '',
-              treatmentNote: '', customTables: [], reassessmentTables: [] 
+              treatmentNote: '', customTables: [], trackedMetrics: [], records: [] 
             };
             setPatients([...patients, newPatient]); setActivePatientId(newPatient.id); setCurrentView('patient');
           };
@@ -238,10 +237,6 @@
             if (user) {
               try {
                 const patientToSave = { ...updatedPatient };
-                // Cleanup deprecated top-level metric arrays if they exist
-                delete patientToSave.trackedMetrics;
-                delete patientToSave.records;
-                
                 if (patientToSave.customTables) {
                     patientToSave.customTables = patientToSave.customTables.map(t => ({ ...t, rows: JSON.stringify(t.rows) }));
                 }
@@ -351,19 +346,12 @@
 
         // --- PATIENT DETAIL VIEW ---
         function PatientDetailView({ patient, onSave, onCancel }) {
-          // Initialize state, handling migration from single-reassessment to multi-reassessment automatically.
-          const [formData, setFormData] = useState(() => {
-              let rTables = patient.reassessmentTables || [];
-              if (rTables.length === 0 && (patient.trackedMetrics?.length > 0 || patient.records?.length > 0)) {
-                  rTables = [{ id: 'default-reassessment', title: 'Reassessment and progression tracking :-', trackedMetrics: patient.trackedMetrics || [], records: patient.records || [] }];
-              } else if (rTables.length === 0) {
-                  rTables = [{ id: crypto.randomUUID(), title: 'Reassessment and progression tracking :-', trackedMetrics: [], records: [] }];
-              }
-              return { ...patient, customTables: patient.customTables || [], reassessmentTables: rTables, treatmentNote: patient.treatmentNote || '' };
+          const [formData, setFormData] = useState({
+              ...patient, 
+              customTables: patient.customTables || [],
+              treatmentNote: patient.treatmentNote || ''
           });
-          
           const [isMetricModalOpen, setIsMetricModalOpen] = useState(false);
-          const [activeReassessmentTableId, setActiveReassessmentTableId] = useState(null);
 
           const handleInputChange = (e) => { const { name, value } = e; setFormData((prev) => ({ ...prev, [name]: value })); };
 
@@ -375,39 +363,16 @@
           const handleUpdateCustomTable = (updatedTable) => { setFormData(prev => ({ ...prev, customTables: prev.customTables.map(t => t.id === updatedTable.id ? updatedTable : t) })); };
           const handleRemoveCustomTable = (id) => { setFormData(prev => ({ ...prev, customTables: prev.customTables.filter(t => t.id !== id) })); };
 
-          // Multi-table functions
-          const addReassessmentTable = () => { setFormData(prev => ({ ...prev, reassessmentTables: [...prev.reassessmentTables, { id: crypto.randomUUID(), title: 'Reassessment and progression tracking :-', trackedMetrics: [], records: [] }] })); };
-          const removeReassessmentTable = (id) => { setFormData(prev => ({ ...prev, reassessmentTables: prev.reassessmentTables.filter(t => t.id !== id) })); };
-          const updateReassessmentTableTitle = (tableId, newTitle) => { setFormData(prev => ({ ...prev, reassessmentTables: prev.reassessmentTables.map(t => t.id === tableId ? { ...t, title: newTitle } : t) })); };
-
-          const addMetricColumn = (tableId, metricObj) => { 
-              setFormData(prev => ({ ...prev, reassessmentTables: prev.reassessmentTables.map(t => t.id === tableId ? { ...t, trackedMetrics: [...t.trackedMetrics, metricObj] } : t) })); 
-              setIsMetricModalOpen(false); 
-              setActiveReassessmentTableId(null);
-          };
-          
-          const removeMetricColumn = (tableId, metricId) => { 
-              setFormData(prev => ({ ...prev, reassessmentTables: prev.reassessmentTables.map(t => { if (t.id !== tableId) return t; return { ...t, trackedMetrics: t.trackedMetrics.filter(m => m.id !== metricId), records: t.records.map(rec => { const newValues = { ...rec.values }; delete newValues[metricId]; return { ...rec, values: newValues }; }) }; }) })); 
-          };
-          
-          const addDateRow = (tableId) => { setFormData(prev => ({ ...prev, reassessmentTables: prev.reassessmentTables.map(t => t.id === tableId ? { ...t, records: [...t.records, { id: crypto.randomUUID(), date: new Date().toISOString().split('T')[0], values: {} }] } : t) })); };
-          const removeDateRow = (tableId, recordId) => { setFormData(prev => ({ ...prev, reassessmentTables: prev.reassessmentTables.map(t => t.id === tableId ? { ...t, records: t.records.filter(r => r.id !== recordId) } : t) })); };
-          const updateRecordDate = (tableId, recordId, newDate) => { setFormData(prev => ({ ...prev, reassessmentTables: prev.reassessmentTables.map(t => { if (t.id !== tableId) return t; return { ...t, records: t.records.map(r => r.id === recordId ? { ...r, date: newDate } : r) }; }) })); };
-          const updateSimpleCellValue = (tableId, recordId, metricId, value) => { setFormData(prev => ({ ...prev, reassessmentTables: prev.reassessmentTables.map(t => { if (t.id !== tableId) return t; return { ...t, records: t.records.map(rec => { if (rec.id !== recordId) return rec; return { ...rec, values: { ...rec.values, [metricId]: value } }; })}; }) })); };
-          
-          // Reusable function for multi-field cells (L/R or VAS/ROM)
-          const updateMultiFieldCellValue = (tableId, recordId, metricId, subField, value) => { 
-              setFormData(prev => ({ ...prev, reassessmentTables: prev.reassessmentTables.map(t => { 
-                  if (t.id !== tableId) return t; 
-                  return { ...t, records: t.records.map(rec => { 
-                      if (rec.id !== recordId) return rec; 
-                      let newValues = { ...rec.values }; 
-                      let currentVal = newValues[metricId] || {}; 
-                      newValues[metricId] = { ...currentVal, [subField]: value }; 
-                      return { ...rec, values: newValues }; 
-                  })}; 
-              }) })); 
-          };
+          const addMetricColumn = (metricObj) => { setFormData(prev => ({ ...prev, trackedMetrics: [...prev.trackedMetrics, metricObj] })); setIsMetricModalOpen(false); };
+          const removeMetricColumn = (metricId) => { setFormData(prev => ({ ...prev, trackedMetrics: prev.trackedMetrics.filter(m => m.id !== metricId), records: prev.records.map(rec => { const newValues = { ...rec.values }; delete newValues[metricId]; return { ...rec, values: newValues }; }) })); };
+          const addDateRow = () => { const newRecord = { id: crypto.randomUUID(), date: new Date().toISOString().split('T')[0], values: {} }; setFormData(prev => ({ ...prev, records: [...prev.records, newRecord] })); };
+          const removeDateRow = (recordId) => { setFormData(prev => ({ ...prev, records: prev.records.filter(rec => rec.id !== recordId) })); };
+          const updateRecordDate = (recordId, newDate) => { setFormData(prev => ({ ...prev, records: prev.records.map(rec => rec.id === recordId ? { ...rec, date: newDate } : rec) })); };
+          const updateSimpleCellValue = (recordId, metricId, value) => { setFormData(prev => ({ ...prev, records: prev.records.map(rec => { if (rec.id !== recordId) return rec; return { ...rec, values: { ...rec.values, [metricId]: value } }; }) })); };
+          const updateBilateralCellValue = (recordId, metricId, side, value) => { setFormData(prev => ({ ...prev, records: prev.records.map(rec => { if (rec.id !== recordId) return rec; let newValues = { ...rec.values }; let currentVal = newValues[metricId] || { r: '', l: '' }; newValues[metricId] = { ...currentVal, [side]: value }; return { ...rec, values: newValues }; }) })); };
+          const updateComplexCellValue = (recordId, metricId, index, field, value) => { setFormData(prev => ({ ...prev, records: prev.records.map(rec => { if (rec.id !== recordId) return rec; let newValues = { ...rec.values }; let entries = Array.isArray(newValues[metricId]) ? [...newValues[metricId]] : []; if (entries.length === 0) entries.push({ vas: '', rom: '' }); while (entries.length <= index) entries.push({ vas: '', rom: '' }); entries[index] = { ...entries[index], [field]: value }; newValues[metricId] = entries; return { ...rec, values: newValues }; }) })); };
+          const addComplexEntry = (recordId, metricId) => { setFormData(prev => ({ ...prev, records: prev.records.map(rec => { if (rec.id !== recordId) return rec; let newValues = { ...rec.values }; let entries = Array.isArray(newValues[metricId]) ? [...newValues[metricId]] : []; entries.push({ vas: '', rom: '' }); newValues[metricId] = entries; return { ...rec, values: newValues }; }) })); };
+          const removeComplexEntry = (recordId, metricId, index) => { setFormData(prev => ({ ...prev, records: prev.records.map(rec => { if (rec.id !== recordId) return rec; let newValues = { ...rec.values }; let entries = Array.isArray(newValues[metricId]) ? [...newValues[metricId]] : []; entries.splice(index, 1); newValues[metricId] = entries; return { ...rec, values: newValues }; }) })); };
 
           const formattedPrintDate = formData.date ? new Date(formData.date).toLocaleDateString('en-GB') : '';
 
@@ -469,113 +434,98 @@
                   )}
                 </section>
 
-                {/* --- Re-Assessment Multi-Table Tracking Block --- */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between mb-2 px-1">
-                        <h2 className="font-semibold text-sm text-indigo-800 flex items-center gap-2"><i className="ph-bold ph-chart-line-up"></i> Reassessment Tracking</h2>
-                        <button onClick={() => handleAddCustomTable('reassessment')} className="flex items-center justify-center gap-1.5 bg-slate-200 text-slate-700 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-slate-300 transition-colors">+ Custom Table</button>
+                {/* Re-Assessment Block */}
+                <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h2 className="font-semibold text-sm text-indigo-800 flex items-center gap-2"><i className="ph-bold ph-chart-line-up"></i> Reassessment Tracking</h2>
+                      <p className="text-[10px] text-slate-500">Track progress across multiple sessions</p>
                     </div>
+                    <div className="flex gap-2">
+                        <button onClick={() => handleAddCustomTable('reassessment')} className="flex items-center justify-center gap-1.5 bg-slate-200 text-slate-700 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-slate-300 transition-colors">+ Custom Table</button>
+                        <button onClick={() => setIsMetricModalOpen(true)} className="flex items-center justify-center gap-1.5 bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-indigo-200 transition-colors"><i className="ph-bold ph-plus"></i> Add Metric Column</button>
+                    </div>
+                  </div>
 
-                    {formData.customTables.filter(t => t.section === 'reassessment').length > 0 && (
-                        <div className="flex flex-wrap items-start gap-4 p-3 bg-white border border-slate-200 rounded-xl mb-4 shadow-sm">
-                            {formData.customTables.filter(t => t.section === 'reassessment').map(table => (<CustomTableEditor key={table.id} table={table} updateTable={handleUpdateCustomTable} removeTable={() => handleRemoveCustomTable(table.id)} />))}
-                        </div>
-                    )}
+                  {formData.customTables.filter(t => t.section === 'reassessment').length > 0 && (
+                      <div className="flex flex-wrap items-start gap-4 p-3 bg-white border-b border-slate-200">
+                          {formData.customTables.filter(t => t.section === 'reassessment').map(table => (<CustomTableEditor key={table.id} table={table} updateTable={handleUpdateCustomTable} removeTable={() => handleRemoveCustomTable(table.id)} />))}
+                      </div>
+                  )}
 
-                    {formData.reassessmentTables.map((rtable, rIdx) => (
-                        <section key={rtable.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                          <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="flex-1">
-                              <div contentEditable suppressContentEditableWarning onBlur={e => updateReassessmentTableTitle(rtable.id, e.currentTarget.textContent)} className="font-semibold text-[14px] text-indigo-800 outline-none min-w-[150px] border-b border-dashed border-indigo-300 focus:border-indigo-600 inline-block">{rtable.title}</div>
-                            </div>
-                            <div className="flex gap-2">
-                                {formData.reassessmentTables.length > 1 && (
-                                    <button onClick={() => removeReassessmentTable(rtable.id)} className="flex items-center justify-center gap-1.5 bg-red-50 text-red-600 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-red-100 transition-colors"><i className="ph-bold ph-trash"></i> Remove Table</button>
+                  <div className="overflow-x-auto p-2 bg-white">
+                    <table className="w-full table-auto border-collapse text-sm border border-slate-200 shadow-sm">
+                      <thead>
+                        <tr>
+                          <th className="p-2 text-left text-[11px] font-semibold text-slate-700 border border-slate-200 w-24 align-bottom bg-slate-50">Date</th>
+                          {formData.trackedMetrics.map(metric => {
+                            return (
+                              <th key={metric.id} className="text-left font-semibold text-slate-700 border border-slate-200 align-bottom p-0 bg-slate-50 group">
+                                <div className="flex items-start justify-between p-1.5 px-2">
+                                  <div className="flex flex-col leading-tight whitespace-nowrap">
+                                    <span className="text-[9px] text-slate-400 uppercase tracking-wider">{metric.type}</span>
+                                    <span className="text-[11px]" title={metric.title}>{metric.title}</span>
+                                    {metric.normal && <span className="text-[9px] text-emerald-600 font-medium mt-0.5">Norm: {metric.normal}</span>}
+                                  </div>
+                                  <button onClick={() => removeMetricColumn(metric.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 p-0 ml-2"><i className="ph-bold ph-x text-xs"></i></button>
+                                </div>
+                                {metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT') && (
+                                  <div className="flex w-full border-t border-slate-200 text-[10px] bg-slate-100/50 text-slate-600"><div className="flex-1 py-0.5 text-center border-r border-slate-200 font-bold">R</div><div className="flex-1 py-0.5 text-center font-bold">L</div></div>
                                 )}
-                                <button onClick={() => { setActiveReassessmentTableId(rtable.id); setIsMetricModalOpen(true); }} className="flex items-center justify-center gap-1.5 bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-indigo-200 transition-colors"><i className="ph-bold ph-plus"></i> Add Column</button>
-                            </div>
-                          </div>
-
-                          <div className="overflow-x-auto p-2 bg-white">
-                            <table className="w-full table-auto border-collapse text-sm border border-slate-200 shadow-sm">
-                              <thead>
-                                <tr>
-                                  <th className="p-2 text-left text-[11px] font-semibold text-slate-700 border border-slate-200 w-24 align-bottom bg-slate-50">Date</th>
-                                  {rtable.trackedMetrics.map(metric => {
-                                    return (
-                                      <th key={metric.id} className="text-left font-semibold text-slate-700 border border-slate-200 align-bottom p-0 bg-slate-50 group">
-                                        <div className="flex items-start justify-between p-1.5 px-2">
-                                          <div className="flex flex-col leading-tight whitespace-nowrap">
-                                            <span className="text-[9px] text-slate-400 uppercase tracking-wider">{metric.type}</span>
-                                            <span className="text-[11px]" title={metric.title}>{metric.title}</span>
-                                            {metric.normal && <span className="text-[9px] text-emerald-600 font-medium mt-0.5">Norm: {metric.normal}</span>}
-                                          </div>
-                                          <button onClick={() => removeMetricColumn(rtable.id, metric.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 p-0 ml-2"><i className="ph-bold ph-x text-xs"></i></button>
-                                        </div>
-                                        {metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT') && (
-                                          <div className="flex w-full border-t border-slate-200 text-[10px] bg-slate-100/50 text-slate-600"><div className="flex-1 py-0.5 text-center border-r border-slate-200 font-bold">R</div><div className="flex-1 py-0.5 text-center font-bold">L</div></div>
-                                        )}
-                                        {metric.type === 'ROM with VAS' && (
-                                          <div className="flex w-full border-t border-slate-200 text-[10px] bg-slate-100/50 text-slate-500"><div className="flex-1 py-0.5 text-center border-r border-slate-200">VAS</div><div className="flex-1 py-0.5 text-center">ROM</div></div>
-                                        )}
-                                      </th>
-                                    );
-                                  })}
-                                  <th className="p-2 border border-slate-200 w-8 bg-slate-50"></th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {rtable.records.map(record => (
-                                  <tr key={record.id} className="border-b border-slate-200 hover:bg-slate-50/30">
-                                    <td className="p-0 border border-slate-200 align-top">
-                                      <input type="date" value={record.date} onChange={(e) => updateRecordDate(rtable.id, record.id, e.target.value)} className="w-full h-full min-h-[32px] px-1 bg-transparent text-[11px] focus:outline-none focus:text-blue-600 font-medium" />
+                                {metric.type === 'ROM with VAS' && (
+                                  <div className="flex w-full border-t border-slate-200 text-[10px] bg-slate-100/50 text-slate-500"><div className="flex-1 py-0.5 text-center border-r border-slate-200">VAS</div><div className="flex-1 py-0.5 text-center">ROM</div></div>
+                                )}
+                              </th>
+                            );
+                          })}
+                          <th className="p-2 border border-slate-200 w-8 bg-slate-50"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formData.records.map(record => (
+                          <tr key={record.id} className="border-b border-slate-200 hover:bg-slate-50/30">
+                            <td className="p-0 border border-slate-200 align-top">
+                              <input type="date" value={record.date} onChange={(e) => updateRecordDate(record.id, e.target.value)} className="w-full h-full min-h-[32px] px-1 bg-transparent text-[11px] focus:outline-none focus:text-blue-600 font-medium" />
+                            </td>
+                            {formData.trackedMetrics.map(metric => {
+                              const cellValue = record.values[metric.id];
+                              if (metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT')) {
+                                 return (
+                                   <td key={metric.id} className="p-0 border border-slate-200 align-top">
+                                      <div className="flex h-full min-h-[32px]">
+                                          <div className="flex-1 border-r border-slate-200"><div contentEditable suppressContentEditableWarning onBlur={e => updateBilateralCellValue(record.id, metric.id, 'r', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="-">{cellValue?.r || ''}</div></div>
+                                          <div className="flex-1"><div contentEditable suppressContentEditableWarning onBlur={e => updateBilateralCellValue(record.id, metric.id, 'l', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="-">{cellValue?.l || ''}</div></div>
+                                      </div>
+                                   </td>
+                                 );
+                              }
+                              if (metric.type === 'ROM with VAS') {
+                                let entries = Array.isArray(cellValue) ? cellValue : [];
+                                if (entries.length === 0) return <td key={metric.id} className="border border-[#1e40af] text-center">-</td>;
+                                return (
+                                    <td key={metric.id} className="p-0 border border-slate-200 align-top">
+                                        <div className="flex flex-col h-full min-h-[24px]">{entries.map((entry, idx) => ( <div key={idx} className="flex border-b border-[#1e40af]/30 last:border-b-0"><div className="flex-1 border-r border-[#1e40af]/30 flex items-center justify-center p-1">{entry.vas || '-'}</div><div className="flex-1 flex items-center justify-center p-1">{entry.rom ? `${entry.rom} (at)` : '-'}</div></div> ))}</div>
                                     </td>
-                                    {rtable.trackedMetrics.map(metric => {
-                                      const cellValue = record.values[metric.id];
-                                      if (metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT')) {
-                                         return (
-                                           <td key={metric.id} className="p-0 border border-slate-200 align-top">
-                                              <div className="flex h-full min-h-[32px]">
-                                                  <div className="flex-1 border-r border-slate-200"><div contentEditable suppressContentEditableWarning onBlur={e => updateBilateralCellValue(rtable.id, record.id, metric.id, 'r', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="-">{cellValue?.r || ''}</div></div>
-                                                  <div className="flex-1"><div contentEditable suppressContentEditableWarning onBlur={e => updateBilateralCellValue(rtable.id, record.id, metric.id, 'l', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="-">{cellValue?.l || ''}</div></div>
-                                              </div>
-                                           </td>
-                                         );
-                                      }
-                                      if (metric.type === 'ROM with VAS') {
-                                        return (
-                                            <td key={metric.id} className="p-0 border border-slate-200 align-top">
-                                                <div className="flex h-full min-h-[32px]">
-                                                    <div className="flex-1 border-r border-slate-200"><div contentEditable suppressContentEditableWarning onBlur={e => updateMultiFieldCellValue(rtable.id, record.id, metric.id, 'vas', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="VAS">{cellValue?.vas || ''}</div></div>
-                                                    <div className="flex-1"><div contentEditable suppressContentEditableWarning onBlur={e => updateMultiFieldCellValue(rtable.id, record.id, metric.id, 'rom', e.currentTarget.textContent)} className="editable-cell text-center h-full p-1 min-w-[30px]" data-placeholder="ROM">{cellValue?.rom || ''}</div></div>
-                                                </div>
-                                            </td>
-                                         );
-                                      }
-                                      return (
-                                        <td key={metric.id} className="p-0 border border-slate-200 align-top bg-white">
-                                          <div contentEditable suppressContentEditableWarning onBlur={e => updateSimpleCellValue(rtable.id, record.id, metric.id, e.currentTarget.textContent)} className="editable-cell text-center h-full min-h-[32px] p-2" data-placeholder="-">{cellValue || ''}</div>
-                                        </td>
-                                      );
-                                    })}
-                                    <td className="p-0 text-center align-middle border border-slate-200"><button onClick={() => removeDateRow(rtable.id, record.id)} className="w-full h-full min-h-[32px] flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"><i className="ph-bold ph-trash text-xs"></i></button></td>
-                                  </tr>
-                                ))}
-                                <tr>
-                                  <td colSpan={rtable.trackedMetrics.length + 2} className="p-0 border border-slate-200">
-                                    <button onClick={() => addDateRow(rtable.id)} className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-indigo-600 font-semibold hover:bg-indigo-50 transition-colors bg-slate-50"><i className="ph-bold ph-plus"></i> Add Session Date Record</button>
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        </section>
-                    ))}
-                    
-                    <button onClick={addReassessmentTable} className="w-full flex items-center justify-center gap-1.5 py-3 mt-4 text-sm text-indigo-600 font-bold hover:bg-indigo-50 border-2 border-dashed border-indigo-200 rounded-xl transition-colors">
-                        <i className="ph-bold ph-plus"></i> Add Another Reassessment Table
-                    </button>
-                </div>
+                                );
+                              }
+                              return (
+                                <td key={metric.id} className="p-0 border border-slate-200 align-top bg-white">
+                                  <div contentEditable suppressContentEditableWarning onBlur={e => updateSimpleCellValue(record.id, metric.id, e.currentTarget.textContent)} className="editable-cell text-center h-full min-h-[32px] p-2" data-placeholder="-">{cellValue || ''}</div>
+                                </td>
+                              );
+                            })}
+                            <td className="p-0 text-center align-middle border border-slate-200"><button onClick={() => removeDateRow(record.id)} className="w-full h-full min-h-[32px] flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"><i className="ph-bold ph-trash text-xs"></i></button></td>
+                          </tr>
+                        ))}
+                        <tr>
+                          <td colSpan={formData.trackedMetrics.length + 2} className="p-0 border border-slate-200">
+                            <button onClick={addDateRow} className="w-full flex items-center justify-center gap-1.5 py-2 text-xs text-indigo-600 font-semibold hover:bg-indigo-50 transition-colors bg-slate-50"><i className="ph-bold ph-plus"></i> Add Session Date Record</button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
 
                 <div className="flex flex-wrap gap-3 justify-end pt-2 pb-8">
                   <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm mr-auto sm:mr-0">
@@ -590,32 +540,34 @@
               {/* --- 🖨️ PRINT VIEW (Hidden on Screen, Visible on Print) --- */}
               <div className="hidden print:block bg-white text-[#1e40af] text-[16px] font-sans h-full w-full relative">
                   
-                  {/* MAIN DOCTOR INFO HEADER - Renders ONLY once at the very top of the document, outside the repeating table */}
-                  <div className="flex justify-between items-start pb-2">
-                      <div>
-                          <h1 className="text-[38px] font-bold italic tracking-wide text-[#1e40af]" style={{ textShadow: "0px 0px 1px #1e40af", lineHeight: "1" }}>Dr. Arpan Das (PT)</h1>
-                          <p className="text-[16px] mt-2 font-bold text-[#1e40af]">BPT (KPC Medical College and Hospital)</p>
-                          <p className="text-[16px] font-bold text-[#1e40af]">Consultant Physiotherapist</p>
-                      </div>
-                      <div className="text-right flex flex-col items-end text-[#1e40af] pt-1">
-                          <div className="flex items-center gap-1.5 font-black text-2xl mb-2">
-                              <i className="ph-fill ph-phone-call text-[28px]"></i> +91 9641568109
-                          </div>
-                          {/* Date placed securely inside the top header block so it doesn't repeat */}
-                          <div className="text-[16px] flex items-center gap-2 font-semibold pt-1">
-                              <span>Date:</span> <span className="border-b border-[#1e40af] w-28 text-center text-slate-800 font-bold pb-0.5">{formattedPrintDate}</span>
-                          </div>
-                      </div>
+                  {/* Absolute positioning means this date will ONLY render on the very first page of the printout */}
+                  <div className="absolute right-0 top-[38px] text-[16px] flex items-center gap-2 font-semibold text-[#1e40af] z-50">
+                      <span>Date:</span> <span className="border-b border-[#1e40af] w-28 text-center text-slate-800 font-bold pb-0.5">{formattedPrintDate}</span>
                   </div>
 
-                  {/* Thin Solid Line */}
-                  <div className="border-b border-[#1e40af] mb-1.5"></div>
-
                   <table className="w-full text-left border-collapse">
-                      {/* --- REPEATING TABLE HEADER (PATIENT DATA ONLY) --- */}
+                      {/* --- REPEATING TABLE HEADER --- */}
                       <thead className="print-table-header">
                           <tr>
                               <td className="pb-4">
+                                  {/* Top Header */}
+                                  <div className="flex justify-between items-start pb-2">
+                                      <div>
+                                          <h1 className="text-[38px] font-bold italic tracking-wide text-[#1e40af]" style={{ textShadow: "0px 0px 1px #1e40af", lineHeight: "1" }}>Dr. Arpan Das (PT)</h1>
+                                          <p className="text-[16px] mt-2 font-bold text-[#1e40af]">BPT (KPC Medical College and Hospital)</p>
+                                          <p className="text-[16px] font-bold text-[#1e40af]">Consultant Physiotherapist</p>
+                                      </div>
+                                      <div className="text-right flex flex-col items-end text-[#1e40af] pt-1">
+                                          {/* The mb-8 ensures there is enough space below the phone number for the absolute Date on page 1 */}
+                                          <div className="flex items-center gap-1.5 font-black text-2xl mb-8">
+                                              <i className="ph-fill ph-phone-call text-[28px]"></i> +91 9641568109
+                                          </div>
+                                      </div>
+                                  </div>
+
+                                  {/* Thin Solid Line */}
+                                  <div className="border-b border-[#1e40af] mb-1.5"></div>
+
                                   {/* Patient Info Row */}
                                   <div className="flex justify-between items-end pb-2 pt-2 text-[16px] font-bold text-[#1e40af]">
                                       <div className="flex-1 flex items-end">
@@ -648,18 +600,18 @@
                               <td className="pt-4 px-4">
                                   <div className="flex flex-col gap-6">
                                       
-                                      <div className="z-10 relative print-break-inside-avoid">
-                                          <span className="font-bold text-[20px] text-[#1e40af]">Chief Complaint :-</span>
+                                      <div className="z-10 relative print-break-inside-avoid text-[#1e40af]">
+                                          <span className="font-bold text-[20px]">Chief Complaint :-</span>
                                           <p className="mt-2 ml-4 text-slate-900 text-[18px]">{formData.chiefComplaints || "\u00A0"}</p>
                                       </div>
 
-                                      <div className="z-10 relative print-break-inside-avoid">
-                                          <span className="font-bold text-[20px] text-[#1e40af]">History :-</span>
+                                      <div className="z-10 relative print-break-inside-avoid text-[#1e40af]">
+                                          <span className="font-bold text-[20px]">History :-</span>
                                           <p className="mt-2 ml-4 text-slate-900 text-[18px]">{formData.history || "\u00A0"}</p>
                                       </div>
 
-                                      <div className="z-10 relative">
-                                          <span className="font-bold text-[20px] text-[#1e40af] block mb-2">Assessment :-</span>
+                                      <div className="z-10 relative text-[#1e40af]">
+                                          <span className="font-bold text-[20px] block mb-2">Assessment :-</span>
                                           <p className="mt-2 ml-4 text-slate-900 text-[18px] whitespace-pre-wrap">{formData.assessmentNote || "\u00A0"}</p>
                                           {formData.customTables.filter(t => t.section === 'assessment').length > 0 && (
                                               <div className="flex flex-wrap items-start gap-4 mt-4 ml-4">{formData.customTables.filter(t => t.section === 'assessment').map(table => (<CustomTableEditor key={table.id} table={table} updateTable={()=>{}} removeTable={()=>{}} />))}</div>
@@ -668,79 +620,70 @@
 
                                       {/* Diagnosis */}
                                       {formData.diagnosis && (
-                                          <div className="z-10 relative print-break-inside-avoid">
-                                              <span className="font-bold text-[20px] text-[#1e40af]">Diagnosis:</span>
+                                          <div className="z-10 relative print-break-inside-avoid text-[#1e40af]">
+                                              <span className="font-bold text-[20px]">Diagnosis:</span>
                                               <span className="ml-2 text-slate-900 font-bold text-[19px]">{formData.diagnosis}</span>
                                           </div>
                                       )}
 
-                                      <div className="z-10 relative print-break-inside-avoid">
-                                          <span className="font-bold text-[20px] text-[#1e40af] block mb-2">Treatment Plan / Advice :-</span>
+                                      <div className="z-10 relative print-break-inside-avoid text-[#1e40af]">
+                                          <span className="font-bold text-[20px] block mb-2">Treatment Plan / Advice :-</span>
                                           <p className="mt-2 ml-4 text-slate-900 text-[18px] whitespace-pre-wrap leading-relaxed">{formData.treatmentNote || "\u00A0"}</p>
                                           {formData.customTables.filter(t => t.section === 'treatment').length > 0 && (
                                               <div className="flex flex-wrap items-start gap-4 mt-4 ml-4">{formData.customTables.filter(t => t.section === 'treatment').map(table => (<CustomTableEditor key={table.id} table={table} updateTable={()=>{}} removeTable={()=>{}} />))}</div>
                                           )}
                                       </div>
 
-                                      {/* Re-Assessment Print Header & Custom Tables */}
-                                      {(formData.reassessmentTables.length > 0 || formData.customTables.filter(t => t.section === 'reassessment').length > 0) && (
-                                          <div className="z-10 relative mt-6 print-break-inside-avoid">
-                                              {formData.customTables.filter(t => t.section === 'reassessment').length > 0 && (
-                                                  <div className="flex flex-wrap items-start gap-4 mb-6">{formData.customTables.filter(t => t.section === 'reassessment').map(table => (<CustomTableEditor key={table.id} table={table} updateTable={()=>{}} removeTable={()=>{}} />))}</div>
-                                              )}
-                                          </div>
-                                      )}
-
-                                      {/* Multi-Table Reassessment Printing loop */}
-                                      {formData.reassessmentTables.map((rtable, rIdx) => (
-                                          <div key={rtable.id} className="z-10 relative mt-4 print-break-inside-avoid">
-                                              <span className="font-bold text-[20px] text-[#1e40af] block mb-4">{rtable.title}</span>
-                                              
-                                              {rtable.trackedMetrics.length > 0 ? (
-                                                <table className="w-full table-auto border-collapse text-[16px] text-slate-900 border border-[#1e40af]">
-                                                    <thead>
-                                                        <tr>
-                                                            <th className="p-2 text-left border border-[#1e40af] w-28 text-[#1e40af] font-bold">Date</th>
-                                                            {rtable.trackedMetrics.map(metric => (
-                                                                <th key={metric.id} className="p-1 border border-[#1e40af] text-[#1e40af] font-bold text-center align-top">
-                                                                    <div className="flex flex-col h-full justify-between">
-                                                                        <span className="leading-tight px-1 mb-1.5 pt-1">{metric.title}</span>
-                                                                        {metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT') && ( <div className="flex w-full border-t border-[#1e40af] text-[14px] text-[#1e40af] mt-auto"><div className="flex-1 py-1 border-r border-[#1e40af] font-bold">R</div><div className="flex-1 py-1 font-bold">L</div></div> )}
-                                                                        {metric.type === 'ROM with VAS' && ( <div className="flex w-full border-t border-[#1e40af] text-[14px] text-[#1e40af] mt-auto"><div className="flex-1 py-1 border-r border-[#1e40af] font-bold">VAS</div><div className="flex-1 py-1 font-bold">ROM</div></div> )}
-                                                                    </div>
-                                                                </th>
-                                                            ))}
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {rtable.records.map(record => (
-                                                            <tr key={record.id} className="print-break-inside-avoid">
-                                                                <td className="p-2 border border-[#1e40af] whitespace-nowrap align-top font-medium">{record.date ? new Date(record.date).toLocaleDateString('en-GB') : ''}</td>
-                                                                {rtable.trackedMetrics.map(metric => {
-                                                                    const cellValue = record.values[metric.id];
-                                                                    if (metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT')) {
-                                                                        return ( <td key={metric.id} className="p-0 border border-[#1e40af] align-top"><div className="flex h-full min-h-[32px]"><div className="flex-1 border-r border-[#1e40af] flex items-center justify-center p-1.5">{cellValue?.r || '-'}</div><div className="flex-1 flex items-center justify-center p-1.5">{cellValue?.l || '-'}</div></div></td> );
-                                                                    }
-                                                                    if (metric.type === 'ROM with VAS') {
-                                                                        return (
-                                                                            <td key={metric.id} className="p-0 border border-[#1e40af] align-top">
-                                                                                <div className="flex h-full min-h-[32px]">
-                                                                                    <div className="flex-1 border-r border-[#1e40af] flex items-center justify-center p-1.5">{cellValue?.vas || '-'}</div>
-                                                                                    <div className="flex-1 flex items-center justify-center p-1.5">{cellValue?.rom || '-'}</div>
-                                                                                </div>
-                                                                            </td>
-                                                                        );
-                                                                    }
-                                                                    return ( <td key={metric.id} className="p-2 border border-[#1e40af] text-center align-middle">{cellValue || '-'}</td> );
-                                                                })}
-                                                            </tr>
+                                      {/* Re-Assessment Print Section */}
+                                      <div className="z-10 relative mt-6 text-[#1e40af] print-break-inside-avoid">
+                                          <span className="font-bold text-[20px] block mb-4">Reassessment and progression tracking :-</span>
+                                          {formData.customTables.filter(t => t.section === 'reassessment').length > 0 && (
+                                              <div className="flex flex-wrap items-start gap-4 mb-6">{formData.customTables.filter(t => t.section === 'reassessment').map(table => (<CustomTableEditor key={table.id} table={table} updateTable={()=>{}} removeTable={()=>{}} />))}</div>
+                                          )}
+                                          
+                                          {formData.trackedMetrics.length > 0 ? (
+                                            <table className="w-full table-auto border-collapse text-[16px] text-slate-900 border border-[#1e40af]">
+                                                <thead>
+                                                    <tr>
+                                                        <th className="p-2 text-left border border-[#1e40af] w-28 text-[#1e40af] font-bold">Date</th>
+                                                        {formData.trackedMetrics.map(metric => (
+                                                            <th key={metric.id} className="p-1 border border-[#1e40af] text-[#1e40af] font-bold text-center align-top">
+                                                                <div className="flex flex-col h-full justify-between">
+                                                                    <span className="leading-tight px-1 mb-1.5 pt-1">{metric.title}</span>
+                                                                    {metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT') && ( <div className="flex w-full border-t border-[#1e40af] text-[14px] text-[#1e40af] mt-auto"><div className="flex-1 py-1 border-r border-[#1e40af] font-bold">R</div><div className="flex-1 py-1 font-bold">L</div></div> )}
+                                                                    {metric.type === 'ROM with VAS' && ( <div className="flex w-full border-t border-[#1e40af] text-[14px] text-[#1e40af] mt-auto"><div className="flex-1 py-1 border-r border-[#1e40af] font-bold">VAS</div><div className="flex-1 py-1 font-bold">Treatment</div></div> )}
+                                                                </div>
+                                                            </th>
                                                         ))}
-                                                        {rtable.records.length === 0 && ( <tr className="print-break-inside-avoid"><td colSpan={rtable.trackedMetrics.length + 1} className="p-3 border border-[#1e40af] text-center italic text-slate-500">No records added.</td></tr> )}
-                                                    </tbody>
-                                                </table>
-                                              ) : ( <p className="text-slate-500 italic ml-2 mt-2 hidden print:block text-[14px]">No core metrics tracked.</p> )}
-                                          </div>
-                                      ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {formData.records.map(record => (
+                                                        <tr key={record.id} className="print-break-inside-avoid">
+                                                            <td className="p-2 border border-[#1e40af] whitespace-nowrap align-top font-medium">{record.date ? new Date(record.date).toLocaleDateString('en-GB') : ''}</td>
+                                                            {formData.trackedMetrics.map(metric => {
+                                                                const cellValue = record.values[metric.id];
+                                                                if (metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT')) {
+                                                                    return ( <td key={metric.id} className="p-0 border border-[#1e40af] align-top"><div className="flex h-full min-h-[32px]"><div className="flex-1 border-r border-[#1e40af] flex items-center justify-center p-1.5">{cellValue?.r || '-'}</div><div className="flex-1 flex items-center justify-center p-1.5">{cellValue?.l || '-'}</div></div></td> );
+                                                                }
+                                                                if (metric.type === 'ROM with VAS') {
+                                                                    let entries = Array.isArray(cellValue) ? cellValue : [];
+                                                                    if (entries.length === 0) return <td key={metric.id} className="border border-[#1e40af] text-center">-</td>;
+                                                                    return (
+                                                                        <td key={metric.id} className="p-0 border border-[#1e40af] align-top">
+                                                                            <div className="flex flex-col h-full min-h-[32px]">{entries.map((entry, idx) => ( <div key={idx} className="flex border-b border-[#1e40af]/40 last:border-b-0"><div className="flex-1 border-r border-[#1e40af]/40 flex items-center justify-center p-1.5">{entry.vas || '-'}</div><div className="flex-1 flex items-center justify-center p-1.5">{entry.rom ? `${entry.rom}` : '-'}</div></div> ))}</div>
+                                                                        </td>
+                                                                    );
+                                                                }
+                                                                return ( <td key={metric.id} className="p-2 border border-[#1e40af] text-center align-middle">{cellValue || '-'}</td> );
+                                                            })}
+                                                        </tr>
+                                                    ))}
+                                                    {formData.records.length === 0 && ( <tr className="print-break-inside-avoid"><td colSpan={formData.trackedMetrics.length + 1} className="p-3 border border-[#1e40af] text-center italic text-slate-500">No records added.</td></tr> )}
+                                                </tbody>
+                                            </table>
+                                          ) : ( <p className="text-slate-500 italic ml-2 mt-2 hidden print:block text-[14px]">No core metrics tracked.</p> )}
+                                      </div>
 
                                   </div>
                               </td>
@@ -748,7 +691,7 @@
                       </tbody>
                   </table>
               </div>
-              {isMetricModalOpen && <AddMetricModal onClose={() => { setIsMetricModalOpen(false); setActiveReassessmentTableId(null); }} onAdd={(metricObj) => addMetricColumn(activeReassessmentTableId, metricObj)} />}
+              {isMetricModalOpen && <AddMetricModal onClose={() => setIsMetricModalOpen(false)} onAdd={addMetricColumn} />}
             </div>
           );
         }
@@ -769,15 +712,8 @@
               if (type === 'ROM with VAS' && movement.type === 'bilateral') title += ` (${side})`;
               else if (type === 'ROM') isBilateral = movement.type === 'bilateral';
             } 
-            else if (type === 'MMT') { 
-              title += `${selectedJointGroup} ${movement.name}`; isBilateral = movement.type === 'bilateral'; normalVal = '5/5'; 
-            } 
-            else if (type === 'VAS') {
-              title = customName || 'VAS'; isBilateral = false; normalVal = '0-10';
-            }
-            else { 
-              title = customName || 'Custom Column'; isBilateral = false; normalVal = ''; 
-            }
+            else if (type === 'MMT') { title += `${selectedJointGroup} ${movement.name}`; isBilateral = movement.type === 'bilateral'; normalVal = '5/5'; } 
+            else title = customName || 'Custom Treatment Tracker';
 
             onAdd({ id: crypto.randomUUID(), type, title, isBilateral, normal: normalVal });
           };
@@ -790,13 +726,7 @@
                 <div className="p-4 space-y-4">
                   <div className="space-y-1">
                     <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Metric Type</label>
-                    <select value={type} onChange={(e) => setType(e.target.value)} className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-blue-500">
-                        <option value="ROM">Range of Motion (ROM)</option>
-                        <option value="MMT">Manual Muscle Test (MMT)</option>
-                        <option value="ROM with VAS">ROM + VAS (Single Side)</option>
-                        <option value="VAS">VAS (Pain Scale)</option>
-                        <option value="Other">Other / Treatment</option>
-                    </select>
+                    <select value={type} onChange={(e) => setType(e.target.value)} className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-blue-500"><option value="ROM">Range of Motion (ROM)</option><option value="MMT">Manual Muscle Test (MMT)</option><option value="ROM with VAS">ROM + VAS (Single Side)</option><option value="Other">Other / Electrotherapy</option></select>
                   </div>
                   {(type === 'ROM' || type === 'ROM with VAS' || type === 'MMT') && (
                     <>
@@ -812,12 +742,7 @@
                       )}
                     </>
                   )}
-                  {(type === 'Other' || type === 'VAS') && ( 
-                      <div className="space-y-1">
-                          <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Name</label>
-                          <input type="text" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder={type === 'VAS' ? "e.g. Resting VAS (Leave blank for default)" : "e.g. Current Treatment"} className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-blue-500" />
-                      </div> 
-                  )}
+                  {type === 'Other' && ( <div className="space-y-1"><label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Name</label><input type="text" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="e.g. TENS dose" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-1 focus:ring-blue-500" /></div> )}
                 </div>
                 <div className="p-3 border-t border-slate-100 bg-slate-50"><button onClick={handleAdd} className="w-full py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm transition-colors">Add Column</button></div>
               </div>
@@ -830,4 +755,3 @@
     </script>
 </body>
 </html>
-
