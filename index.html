@@ -585,12 +585,29 @@
               {/* --- 🖨️ PRINT VIEW (Hidden on Screen, Visible on Print) --- */}
               <div className="hidden print:block bg-white text-black font-sans w-full text-[14px]">
                   
+                  {/* --- DOCTOR INFO (Only on 1st page) --- */}
+                  <div className="mb-3 print-break-inside-avoid">
+                      <div className="flex justify-between items-start pb-2">
+                          <div>
+                              <h1 className="text-[22px] font-bold italic tracking-wide text-[#1e40af]">Dr. Arpan Das (PT)</h1>
+                              <p className="text-[13px] mt-0.5 font-bold text-[#1e40af]">BPT (KPC Medical College and Hospital)</p>
+                              <p className="text-[13px] font-bold text-[#1e40af]">Consultant Physiotherapist</p>
+                          </div>
+                          <div className="text-right flex flex-col items-end text-[#1e40af]">
+                              <div className="flex items-center gap-1.5 font-bold text-[14px]">
+                                  <i className="ph-fill ph-phone-call text-[16px]"></i> +91 9641568109
+                              </div>
+                          </div>
+                      </div>
+                      <div className="border-b-[1.5px] border-[#1e40af]"></div>
+                  </div>
+
                   <table className="w-full text-left border-collapse">
-                      {/* --- REPEATING TABLE HEADER --- */}
+                      {/* --- REPEATING TABLE HEADER (Patient Info) --- */}
                       <thead className="print-table-header">
                           <tr>
-                              <td className="pb-4 pt-2">
-                                  {/* Patient Info Row (Doctor Info Removed) */}
+                              <td className="pb-4 pt-1">
+                                  {/* Patient Info Row */}
                                   <div className="flex justify-between items-end pb-2 text-[13px] font-bold text-[#1e40af]">
                                       <div className="flex-1 flex items-end">
                                           <span className="whitespace-nowrap">Patient:</span> 
@@ -812,4 +829,6 @@
     </script>
 </body>
 </html>
+
+
 
