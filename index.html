@@ -117,7 +117,7 @@
             return (
                 <div className="w-fit max-w-full bg-white border border-slate-200 rounded-lg shadow-sm overflow-x-auto print:overflow-visible print:border-none print:shadow-none print-break-inside-avoid">
                     <div className={`bg-slate-100 px-3 py-2 flex items-center justify-between border-b border-slate-200 print:bg-transparent print:px-0 ${table.title ? 'print:border-none' : 'print:border-none print:p-0'}`}>
-                        <div contentEditable suppressContentEditableWarning onBlur={(e) => updateTitle(e.currentTarget.textContent)} className={`font-bold text-sm text-blue-800 outline-none editable-cell w-auto print:text-[#1e40af] print:text-[16px] print:mb-1.5 ${!table.title ? 'print:hidden' : ''}`} data-placeholder="Table Title (Optional)">{table.title}</div>
+                        <div contentEditable suppressContentEditableWarning onBlur={(e) => updateTitle(e.currentTarget.textContent)} className={`font-bold text-sm text-blue-800 outline-none editable-cell w-auto print:text-[#1e40af] print:text-[14px] print:mb-1 ${!table.title ? 'print:hidden' : ''}`} data-placeholder="Table Title (Optional)">{table.title}</div>
                         <div className="flex gap-2 print:hidden ml-4">
                             <button onClick={addCol} className="text-[10px] bg-white border border-slate-300 text-slate-600 px-2 py-1 rounded hover:bg-slate-50 whitespace-nowrap">+ Col</button>
                             <button onClick={addRow} className="text-[10px] bg-white border border-slate-300 text-slate-600 px-2 py-1 rounded hover:bg-slate-50 whitespace-nowrap">+ Row</button>
@@ -130,7 +130,7 @@
                                 <tr>
                                     {table.headers.map((h, i) => (
                                         <th key={i} className="relative group border border-slate-200 p-0 bg-slate-50 print:border print:border-[#1e40af] print:bg-white print-break-inside-avoid">
-                                            <div contentEditable suppressContentEditableWarning onBlur={(e) => updateHeader(i, e.currentTarget.textContent)} className="editable-cell font-semibold text-slate-700 text-[12px] p-2 print:text-[#1e40af] print:font-bold print:text-[14px] print:p-2 print:text-center" data-placeholder="Header">{h}</div>
+                                            <div contentEditable suppressContentEditableWarning onBlur={(e) => updateHeader(i, e.currentTarget.textContent)} className="editable-cell font-semibold text-slate-700 text-[12px] p-2 print:text-[#1e40af] print:font-bold print:text-[13px] print:p-1.5 print:text-center" data-placeholder="Header">{h}</div>
                                             {table.headers.length > 1 && ( <button onClick={() => removeCol(i)} className="absolute -top-2 -right-2 bg-red-100 text-red-600 rounded-full w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity print:hidden text-[8px] border border-red-200 z-10"><i className="ph-bold ph-x"></i></button> )}
                                         </th>
                                     ))}
@@ -142,7 +142,7 @@
                                     <tr key={rIdx} className="group print-break-inside-avoid">
                                         {row.map((cell, cIdx) => (
                                             <td key={cIdx} className="border border-slate-200 p-0 align-top print:border print:border-[#1e40af] print:align-middle">
-                                                <div contentEditable suppressContentEditableWarning onBlur={(e) => updateCell(rIdx, cIdx, e.currentTarget.textContent)} className="editable-cell text-slate-700 text-[12px] p-2 min-h-[32px] print:text-black print:min-h-0 print:py-1.5 print:px-2 print:text-[14px] print:text-center">{cell}</div>
+                                                <div contentEditable suppressContentEditableWarning onBlur={(e) => updateCell(rIdx, cIdx, e.currentTarget.textContent)} className="editable-cell text-slate-700 text-[12px] p-2 min-h-[32px] print:text-slate-900 print:min-h-0 print:py-1 print:px-1.5 print:text-[13px] print:text-center">{cell}</div>
                                             </td>
                                         ))}
                                         <td className="w-8 text-center border-none p-0 align-middle print:hidden">
@@ -583,55 +583,54 @@
               </div>
 
               {/* --- 🖨️ PRINT VIEW (Hidden on Screen, Visible on Print) --- */}
-              <div className="hidden print:block bg-white text-black font-sans w-full text-[15px]">
+              <div className="hidden print:block bg-white text-black font-sans w-full text-[14px]">
                   
-                  {/* DOCTOR INFO HEADER - PRINTS ONCE ON FIRST PAGE */}
-                  <div className="flex justify-between items-start pb-3">
+                  {/* MAIN DOCTOR INFO HEADER (Moved outside the table so it only prints on the first page) */}
+                  <div className="flex justify-between items-start pb-2">
                       <div>
-                          <h1 className="text-[28px] font-bold italic tracking-wide text-[#1e40af]">Dr. Arpan Das (PT)</h1>
-                          <p className="text-[16px] mt-1 font-bold text-[#1e40af]">BPT (KPC Medical College and Hospital)</p>
-                          <p className="text-[16px] font-bold text-[#1e40af]">Consultant Physiotherapist</p>
+                          <h1 className="text-[22px] font-bold italic tracking-wide text-[#1e40af]">Dr. Arpan Das (PT)</h1>
+                          <p className="text-[13px] mt-0.5 font-bold text-[#1e40af]">BPT (KPC Medical College and Hospital)</p>
+                          <p className="text-[13px] font-bold text-[#1e40af]">Consultant Physiotherapist</p>
                       </div>
                       <div className="text-right flex flex-col items-end text-[#1e40af]">
-                          <div className="flex items-center gap-1.5 font-bold text-[18px]">
-                              <i className="ph-fill ph-phone-call text-[20px]"></i> +91 9641568109
+                          <div className="flex items-center gap-1.5 font-bold text-[14px]">
+                              <i className="ph-fill ph-phone-call text-[16px]"></i> +91 9641568109
                           </div>
-                          <div className="text-[16px] flex items-center gap-2 font-bold mt-2">
-                              <span>Date:</span> <span className="border-b border-[#1e40af] w-28 text-center text-black pb-0.5">{formattedPrintDate}</span>
+                          <div className="text-[13px] flex items-center gap-2 font-bold mt-1">
+                              <span>Date:</span> <span className="border-b border-[#1e40af] w-24 text-center text-black pb-0.5">{formattedPrintDate}</span>
                           </div>
                       </div>
                   </div>
 
-                  <div className="border-b-[2px] border-[#1e40af] mb-4"></div>
-
-                  {/* REPEATING TABLE LAYOUT */}
+                  <div className="border-b-[1.5px] border-[#1e40af] mb-3"></div>
+                  
                   <table className="w-full text-left border-collapse">
-                      {/* --- PATIENT INFO HEADER - REPEATS ON EVERY NEW PAGE --- */}
+                      {/* --- REPEATING TABLE HEADER --- */}
                       <thead className="print-table-header">
                           <tr>
-                              <th className="pb-5 font-normal">
-                                  {/* Patient Info Row */}
-                                  <div className="flex justify-between items-end pb-2 text-[15px] font-bold text-[#1e40af]">
+                              <td className="pb-4">
+                                  {/* Patient Info Row (Kept inside thead so it repeats on every page) */}
+                                  <div className="flex justify-between items-end pb-2 text-[13px] font-bold text-[#1e40af]">
                                       <div className="flex-1 flex items-end">
                                           <span className="whitespace-nowrap">Patient's name:</span> 
-                                          <span className="border-b border-[#1e40af] flex-1 ml-2 mr-4 px-2 text-black pb-0.5 text-left">{formData.name}</span>
+                                          <span className="border-b border-[#1e40af] flex-1 ml-2 mr-4 px-2 text-black pb-0.5">{formData.name}</span>
                                       </div>
                                       <div className="w-24 flex items-end">
                                           <span className="whitespace-nowrap">Age:</span> 
                                           <span className="border-b border-[#1e40af] flex-1 ml-2 mr-4 px-1 text-center text-black pb-0.5">{formData.age}</span>
                                       </div>
-                                      <div className="w-40 flex items-end">
+                                      <div className="w-36 flex items-end">
                                           <span className="whitespace-nowrap">Gender:</span> 
                                           <span className="border-b border-[#1e40af] flex-1 ml-2 mr-4 px-1 text-center text-black pb-0.5">{formData.gender}</span>
                                       </div>
-                                      <div className="w-36 flex items-end">
+                                      <div className="w-32 flex items-end">
                                           <span className="whitespace-nowrap">UPID:</span> 
                                           <span className="border-b border-[#1e40af] flex-1 ml-2 px-1 text-center text-black pb-0.5">{formData.ipId}</span>
                                       </div>
                                   </div>
 
-                                  <div className="border-b-[2px] border-[#1e40af]"></div>
-                              </th>
+                                  <div className="border-b-[1.5px] border-[#1e40af]"></div>
+                              </td>
                           </tr>
                       </thead>
 
@@ -639,72 +638,72 @@
                       <tbody>
                           <tr>
                               <td className="pt-2 px-2 align-top">
-                                  <div className="flex flex-col gap-6">
+                                  <div className="flex flex-col gap-5">
                                       
                                       {formData.chiefComplaints && (
                                       <div className="z-10 relative print-break-inside-avoid">
-                                          <span className="font-bold text-[16px] text-[#1e40af]">Chief Complaint :-</span>
-                                          <p className="mt-1.5 ml-4 text-black text-[15px] whitespace-pre-wrap">{formData.chiefComplaints}</p>
+                                          <span className="font-bold text-[14px] text-[#1e40af]">Chief Complaint :-</span>
+                                          <p className="mt-1.5 ml-4 text-black text-[13px] whitespace-pre-wrap">{formData.chiefComplaints}</p>
                                       </div>
                                       )}
 
                                       {formData.history && (
                                       <div className="z-10 relative print-break-inside-avoid">
-                                          <span className="font-bold text-[16px] text-[#1e40af]">History :-</span>
-                                          <p className="mt-1.5 ml-4 text-black text-[15px] whitespace-pre-wrap">{formData.history}</p>
+                                          <span className="font-bold text-[14px] text-[#1e40af]">History :-</span>
+                                          <p className="mt-1.5 ml-4 text-black text-[13px] whitespace-pre-wrap">{formData.history}</p>
                                       </div>
                                       )}
 
                                       {(formData.assessmentNote || formData.customTables.some(t => t.section === 'assessment')) && (
                                       <div className="z-10 relative">
-                                          <span className="font-bold text-[16px] text-[#1e40af] block mb-1.5">Assessment :-</span>
-                                          {formData.assessmentNote && <p className="ml-4 text-black text-[15px] whitespace-pre-wrap leading-relaxed">{formData.assessmentNote}</p>}
+                                          <span className="font-bold text-[14px] text-[#1e40af] block mb-1.5">Assessment :-</span>
+                                          {formData.assessmentNote && <p className="ml-4 text-black text-[13px] whitespace-pre-wrap leading-relaxed">{formData.assessmentNote}</p>}
                                           {formData.customTables.filter(t => t.section === 'assessment').length > 0 && (
-                                              <div className="flex flex-wrap items-start gap-4 mt-4 ml-4">{formData.customTables.filter(t => t.section === 'assessment').map(table => (<CustomTableEditor key={table.id} table={table} updateTable={()=>{}} removeTable={()=>{}} />))}</div>
+                                              <div className="flex flex-wrap items-start gap-4 mt-3 ml-4">{formData.customTables.filter(t => t.section === 'assessment').map(table => (<CustomTableEditor key={table.id} table={table} updateTable={()=>{}} removeTable={()=>{}} />))}</div>
                                           )}
                                       </div>
                                       )}
 
                                       {formData.diagnosis && (
                                           <div className="z-10 relative print-break-inside-avoid">
-                                              <span className="font-bold text-[16px] text-[#1e40af]">Diagnosis:</span>
-                                              <span className="ml-2 text-black font-bold text-[16px]">{formData.diagnosis}</span>
+                                              <span className="font-bold text-[14px] text-[#1e40af]">Diagnosis:</span>
+                                              <span className="ml-2 text-black font-bold text-[14px]">{formData.diagnosis}</span>
                                           </div>
                                       )}
 
                                       {(formData.treatmentNote || formData.customTables.some(t => t.section === 'treatment')) && (
                                       <div className="z-10 relative print-break-inside-avoid">
-                                          <span className="font-bold text-[16px] text-[#1e40af] block mb-1.5">Treatment Plan / Advice :-</span>
-                                          {formData.treatmentNote && <p className="ml-4 text-black text-[15px] whitespace-pre-wrap leading-relaxed">{formData.treatmentNote}</p>}
+                                          <span className="font-bold text-[14px] text-[#1e40af] block mb-1.5">Treatment Plan / Advice :-</span>
+                                          {formData.treatmentNote && <p className="ml-4 text-black text-[13px] whitespace-pre-wrap leading-relaxed">{formData.treatmentNote}</p>}
                                           {formData.customTables.filter(t => t.section === 'treatment').length > 0 && (
-                                              <div className="flex flex-wrap items-start gap-4 mt-4 ml-4">{formData.customTables.filter(t => t.section === 'treatment').map(table => (<CustomTableEditor key={table.id} table={table} updateTable={()=>{}} removeTable={()=>{}} />))}</div>
+                                              <div className="flex flex-wrap items-start gap-4 mt-3 ml-4">{formData.customTables.filter(t => t.section === 'treatment').map(table => (<CustomTableEditor key={table.id} table={table} updateTable={()=>{}} removeTable={()=>{}} />))}</div>
                                           )}
                                       </div>
                                       )}
 
                                       {/* Re-Assessment Custom Tables (Before the main tracking tables) */}
                                       {formData.customTables.filter(t => t.section === 'reassessment').length > 0 && (
-                                          <div className="z-10 relative mt-5 print-break-inside-avoid">
+                                          <div className="z-10 relative mt-4 print-break-inside-avoid">
                                               <div className="flex flex-wrap items-start gap-4">{formData.customTables.filter(t => t.section === 'reassessment').map(table => (<CustomTableEditor key={table.id} table={table} updateTable={()=>{}} removeTable={()=>{}} />))}</div>
                                           </div>
                                       )}
 
                                       {/* Multi-Table Reassessment Printing loop */}
                                       {formData.reassessmentTables.map((rtable, rIdx) => (
-                                          <div key={rtable.id} className="z-10 relative mt-4 print-break-inside-avoid">
-                                              <span className="font-bold text-[16px] text-[#1e40af] block mb-3">{rtable.title}</span>
+                                          <div key={rtable.id} className="z-10 relative mt-3 print-break-inside-avoid">
+                                              <span className="font-bold text-[14px] text-[#1e40af] block mb-2">{rtable.title}</span>
                                               
                                               {rtable.trackedMetrics.length > 0 && (
-                                                <table className="w-full table-auto border-collapse text-[14px] text-black border border-[#1e40af]">
+                                                <table className="w-full table-auto border-collapse text-[13px] text-black border border-[#1e40af]">
                                                     <thead>
                                                         <tr>
-                                                            <th className="p-2 text-left border border-[#1e40af] w-28 text-[#1e40af] font-bold align-middle">Date</th>
+                                                            <th className="p-1.5 text-left border border-[#1e40af] w-24 text-[#1e40af] font-bold align-middle">Date</th>
                                                             {rtable.trackedMetrics.map(metric => (
                                                                 <th key={metric.id} className="p-0 border border-[#1e40af] text-[#1e40af] font-bold text-center align-top">
                                                                     <div className="flex flex-col h-full justify-between">
-                                                                        <span className="leading-tight px-1 py-2">{metric.title}</span>
-                                                                        {metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT') && ( <div className="flex w-full border-t border-[#1e40af] text-[13px] mt-auto"><div className="flex-1 py-1 border-r border-[#1e40af] font-bold">R</div><div className="flex-1 py-1 font-bold">L</div></div> )}
-                                                                        {metric.type === 'ROM with VAS' && ( <div className="flex w-full border-t border-[#1e40af] text-[13px] mt-auto"><div className="flex-1 py-1 border-r border-[#1e40af] font-bold">VAS</div><div className="flex-1 py-1 font-bold">ROM</div></div> )}
+                                                                        <span className="leading-tight px-1 py-1.5">{metric.title}</span>
+                                                                        {metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT') && ( <div className="flex w-full border-t border-[#1e40af] text-[12px] mt-auto"><div className="flex-1 py-0.5 border-r border-[#1e40af] font-bold">R</div><div className="flex-1 py-0.5 font-bold">L</div></div> )}
+                                                                        {metric.type === 'ROM with VAS' && ( <div className="flex w-full border-t border-[#1e40af] text-[12px] mt-auto"><div className="flex-1 py-0.5 border-r border-[#1e40af] font-bold">VAS</div><div className="flex-1 py-0.5 font-bold">ROM</div></div> )}
                                                                     </div>
                                                                 </th>
                                                             ))}
@@ -713,27 +712,27 @@
                                                     <tbody>
                                                         {rtable.records.map(record => (
                                                             <tr key={record.id} className="print-break-inside-avoid">
-                                                                <td className="p-2 border border-[#1e40af] whitespace-nowrap align-middle font-medium">{record.date ? new Date(record.date).toLocaleDateString('en-GB') : ''}</td>
+                                                                <td className="p-1.5 border border-[#1e40af] whitespace-nowrap align-middle font-medium">{record.date ? new Date(record.date).toLocaleDateString('en-GB') : ''}</td>
                                                                 {rtable.trackedMetrics.map(metric => {
                                                                     const cellValue = record.values[metric.id];
                                                                     if (metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT')) {
-                                                                        return ( <td key={metric.id} className="p-0 border border-[#1e40af] align-middle"><div className="flex h-full min-h-[30px]"><div className="flex-1 border-r border-[#1e40af] flex items-center justify-center p-1.5">{cellValue?.r || '-'}</div><div className="flex-1 flex items-center justify-center p-1.5">{cellValue?.l || '-'}</div></div></td> );
+                                                                        return ( <td key={metric.id} className="p-0 border border-[#1e40af] align-middle"><div className="flex h-full min-h-[28px]"><div className="flex-1 border-r border-[#1e40af] flex items-center justify-center p-1">{cellValue?.r || '-'}</div><div className="flex-1 flex items-center justify-center p-1">{cellValue?.l || '-'}</div></div></td> );
                                                                     }
                                                                     if (metric.type === 'ROM with VAS') {
                                                                         return (
                                                                             <td key={metric.id} className="p-0 border border-[#1e40af] align-middle">
-                                                                                <div className="flex h-full min-h-[30px]">
-                                                                                    <div className="flex-1 border-r border-[#1e40af] flex items-center justify-center p-1.5">{cellValue?.vas || '-'}</div>
-                                                                                    <div className="flex-1 flex items-center justify-center p-1.5">{cellValue?.rom || '-'}</div>
+                                                                                <div className="flex h-full min-h-[28px]">
+                                                                                    <div className="flex-1 border-r border-[#1e40af] flex items-center justify-center p-1">{cellValue?.vas || '-'}</div>
+                                                                                    <div className="flex-1 flex items-center justify-center p-1">{cellValue?.rom || '-'}</div>
                                                                                 </div>
                                                                             </td>
                                                                         );
                                                                     }
-                                                                    return ( <td key={metric.id} className="p-2 border border-[#1e40af] text-center align-middle">{cellValue || '-'}</td> );
+                                                                    return ( <td key={metric.id} className="p-1.5 border border-[#1e40af] text-center align-middle">{cellValue || '-'}</td> );
                                                                 })}
                                                             </tr>
                                                         ))}
-                                                        {rtable.records.length === 0 && ( <tr className="print-break-inside-avoid"><td colSpan={rtable.trackedMetrics.length + 1} className="p-3 border border-[#1e40af] text-center italic text-slate-500">No records added.</td></tr> )}
+                                                        {rtable.records.length === 0 && ( <tr className="print-break-inside-avoid"><td colSpan={rtable.trackedMetrics.length + 1} className="p-2 border border-[#1e40af] text-center italic text-slate-500">No records added.</td></tr> )}
                                                     </tbody>
                                                 </table>
                                               )}
