@@ -458,8 +458,9 @@
                     <input type="tel" name="contact" value={formData.contact} onChange={(e) => handleInputChange(e.target)} className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none" placeholder="Contact" />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 mt-3">
-                    <textarea name="chiefComplaints" value={formData.chiefComplaints} onChange={(e) => handleInputChange(e.target)} rows="1" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none resize-none min-h-[40px]" placeholder="C/C (Chief Complaints)"></textarea>
-                    <textarea name="history" value={formData.history} onChange={(e) => handleInputChange(e.target)} rows="1" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none resize-none min-h-[40px]" placeholder="History"></textarea>
+                    {/* BUG FIX: Removed resize-none and increased rows to allow paragraph writing */}
+                    <textarea name="chiefComplaints" value={formData.chiefComplaints} onChange={(e) => handleInputChange(e.target)} rows="3" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none min-h-[60px]" placeholder="C/C (Chief Complaints)"></textarea>
+                    <textarea name="history" value={formData.history} onChange={(e) => handleInputChange(e.target)} rows="3" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none min-h-[60px]" placeholder="History"></textarea>
                   </div>
                 </section>
 
@@ -469,7 +470,8 @@
                       <div className="flex items-center gap-2 text-blue-800"><i className="ph-bold ph-stethoscope text-base"></i><h2 className="font-semibold text-sm">Assessment & Diagnosis</h2></div>
                       <button onClick={() => handleAddCustomTable('assessment')} className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-1 rounded hover:bg-slate-200">+ Add Table</button>
                   </div>
-                  <textarea name="assessmentNote" value={formData.assessmentNote} onChange={(e) => handleInputChange(e.target)} rows="2" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none resize-none min-h-[60px]" placeholder="Detailed assessment notes..."></textarea>
+                  {/* BUG FIX: Removed resize-none to allow manual resizing */}
+                  <textarea name="assessmentNote" value={formData.assessmentNote} onChange={(e) => handleInputChange(e.target)} rows="2" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none min-h-[60px]" placeholder="Detailed assessment notes..."></textarea>
                   
                   {formData.customTables.filter(t => t.section === 'assessment').length > 0 && (
                       <div className="flex flex-wrap items-start gap-4 mt-3">
@@ -489,7 +491,8 @@
                       <div className="flex items-center gap-2 text-emerald-700"><i className="ph-bold ph-bandaids text-base"></i><h2 className="font-semibold text-sm">Treatment Plan / Advice</h2></div>
                       <button onClick={() => handleAddCustomTable('treatment')} className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-1 rounded hover:bg-slate-200">+ Add Table</button>
                   </div>
-                  <textarea name="treatmentNote" value={formData.treatmentNote} onChange={(e) => handleInputChange(e.target)} rows="2" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none resize-none min-h-[60px]" placeholder="Treatment goals, planned exercises, electrotherapy modalities used..."></textarea>
+                  {/* BUG FIX: Removed resize-none to allow manual resizing */}
+                  <textarea name="treatmentNote" value={formData.treatmentNote} onChange={(e) => handleInputChange(e.target)} rows="2" className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-md outline-none min-h-[60px]" placeholder="Treatment goals, planned exercises, electrotherapy modalities used..."></textarea>
                   
                   {formData.customTables.filter(t => t.section === 'treatment').length > 0 && (
                       <div className="flex flex-wrap items-start gap-4 mt-3">
@@ -544,7 +547,7 @@
                                         {metric.isBilateral && (metric.type === 'ROM' || metric.type === 'MMT') && (
                                           <div className="flex w-full border-t border-slate-200 text-[10px] bg-slate-100/50 text-slate-600"><div className="flex-1 py-0.5 text-center border-r border-slate-200 font-bold">R</div><div className="flex-1 py-0.5 text-center font-bold">L</div></div>
                                         )}
-                                        {metric.type === 'ROM with VAS' && (
+                                        {metric.type === 'ROM with VAS') && (
                                           <div className="flex w-full border-t border-slate-200 text-[10px] bg-slate-100/50 text-slate-500"><div className="flex-1 py-0.5 text-center border-r border-slate-200">VAS</div><div className="flex-1 py-0.5 text-center">ROM</div></div>
                                         )}
                                       </th>
@@ -680,11 +683,13 @@
                               <td className="pt-2 px-2 pb-4">
                                   <div className="text-[#1e40af] mb-4">
                                       <span className="font-bold text-[20px]">Chief Complaint :-</span>
-                                      <p className="mt-1 ml-4 text-slate-900 text-[18px]">{formData.chiefComplaints || "\u00A0"}</p>
+                                      {/* BUG FIX: Added whitespace-pre-wrap so paragraphs print properly */}
+                                      <p className="mt-1 ml-4 text-slate-900 text-[18px] whitespace-pre-wrap">{formData.chiefComplaints || "\u00A0"}</p>
                                   </div>
                                   <div className="text-[#1e40af]">
                                       <span className="font-bold text-[20px]">History :-</span>
-                                      <p className="mt-1 ml-4 text-slate-900 text-[18px]">{formData.history || "\u00A0"}</p>
+                                      {/* BUG FIX: Added whitespace-pre-wrap so paragraphs print properly */}
+                                      <p className="mt-1 ml-4 text-slate-900 text-[18px] whitespace-pre-wrap">{formData.history || "\u00A0"}</p>
                                   </div>
                               </td>
                           </tr>
@@ -816,8 +821,6 @@
           const jointsList = Object.keys(JOINTS_DATA); const [selectedJointGroup, setSelectedJointGroup] = useState(jointsList[2]); 
           const [selectedMovementIdx, setSelectedMovementIdx] = useState(0); const [side, setSide] = useState('R'); const [customName, setCustomName] = useState('');
           
-          // BUG FIX: Removed buggy useEffect causing index out of bounds, handled inline on the Select input instead.
-
           const handleAdd = () => {
             let title = ''; const movement = JOINTS_DATA[selectedJointGroup][selectedMovementIdx];
             let isBilateral = false; let normalVal = '';
